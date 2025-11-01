@@ -1,0 +1,36 @@
+{
+  "npm.packageManager": "npm",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  "editor.formatOnPaste": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "always",
+    "source.fixAll.eslint": "always",
+    "source.organizeImports": "always",
+    "source.sortImports": "always"
+  },
+  "prettier.requireConfig": true,
+  "prettier.configPath": ".prettierrc",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  },
+  "explorer.sortOrder": "type"
+  // "files.exclude": {
+  //   ".husky": true,
+  //   ".github": true,
+  //   ".vscode": true,
+  //   ".next": true,
+  //   "node_modules": true,
+  //   ".lintstagedrc.cjs": true,
+  //   ".npmrc": true,
+  //   ".prettierignore": true,
+  //   ".prettierrc": true,
+  //   "eslint.config.mjs": true,
+  //   "next-env.d.ts": true,
+  //   "package-lock.json": true,
+  //   "postcss.config.mjs": true
+  // }
+}
