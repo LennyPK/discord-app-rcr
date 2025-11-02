@@ -1,7 +1,8 @@
 {
   "name": "discord-app-rcr",
+  "private": true,
   "version": "1.0.0",
-  "description": "",
+  "description": "A discord bot for RCR",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -9,10 +10,11 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
+  "author": "Lenny",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@prisma/client": "^6.18.0",
     "discord.js": "^14.24.2",
     "dotenv": "^17.2.3"
   },

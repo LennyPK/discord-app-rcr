@@ -1,7 +1,9 @@
 const { Client, Events, GatewayIntentBits, Collection, MessageFlags } = require("discord.js");
-const { token } = require("../config.json");
 const fs = require("node:fs");
 const path = require("node:path");
+require("dotenv/config");
+
+const token = process.env.DISCORD_TOKEN;
 
 /** Create a new client instance  */
 const client = new Client({
@@ -25,7 +27,7 @@ client.on("error", (error) => {
   console.error(`❌ error: ${error}`);
 });
 
-client.on("messageCreate", (message) => {
+client.on(Events.MessageCreate, (message) => {
   if (message.author.bot) {
     console.info("This is a bot message");
     return;

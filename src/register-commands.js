@@ -1,35 +1,11 @@
-// const { REST, Routes } = require("discord.js");
-// const { clientId, guildId, token } = require("../config.json");
-
-// const commands = [
-//   {
-//     name: "ping",
-//     description: "Replies with Pong!",
-//   },
-// ];
-
-// const rest = new REST().setToken(token);
-
-// (async () => {
-//   try {
-//     console.log("Started refreshing application (/) commands.");
-
-//     await rest
-//       .put(Routes.applicationGuildCommands(clientId, guildId), { body: commands })
-//       .then(() => console.info("Successfully reloaded application (/) commands."));
-
-//     // await rest
-//     //   .put(Routes.applicationGuildCommands(clientId, guildId), { body: [] })
-//     //   .then(() => console.info("Successfully deleted all guild commands"));
-//   } catch (error) {
-//     console.error(`There was an error: ${error}`);
-//   }
-// })();
-
 const { REST, Routes } = require("discord.js");
-const { clientId, guildId, token } = require("../config.json");
 const fs = require("node:fs");
 const path = require("node:path");
+require("dotenv/config");
+
+const token = process.env.DISCORD_TOKEN;
+const clientId = process.env.CLIENT_ID;
+const guildId = process.env.GUILD_ID;
 
 const commands = [];
 /** Grab all the command folders from the commands directory you created earlier */

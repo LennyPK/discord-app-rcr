@@ -1,0 +1,33 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  discordId  String   @unique
+  // username    UsernameHistory[]
+  username   String
+  // displayName NicknameHistory[]
+  guildName  String
+  // globalName  GlobalNameHistory[]
+  globalName String
+  wordles    Wordle[]
+}
+
+model Wordle {
+  id        Int      @id @default(autoincrement())
+  date      DateTime
+  score     Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+}
