@@ -124,13 +124,17 @@ async function fetchResultsUntil(interaction, channel, untilDate) {
     let reachedUntil = false;
 
     /** Populate messages array until the date is reached */
-    for (const msg of messages) {
-      if (msg.createdTimestamp < untilDate) {
+    for (const message of messages) {
+      if (message.createdTimestamp < untilDate) {
         reachedUntil = true;
         break;
       }
-      if (msg.author.bot && msg.author.id === wordleAppId && resultRegex.test(msg.content)) {
-        allMessages.push(msg);
+      if (
+        message.author.bot &&
+        message.author.id === wordleAppId &&
+        resultRegex.test(message.content)
+      ) {
+        allMessages.push(message);
       }
     }
 
@@ -158,27 +162,22 @@ async function parseScores(interaction, messages) {
   const userRegex = /(?:<@(\d+)>|@([a-zA-Z0-9_]+))/g;
 
   let scoresFound = 0;
-  // const wordlePromises = [];
 
-  // for (const message of messages) {
-  messages.forEach(async (message, index) => {
-    console.info(`Processing message ${index}/${messages.length}: ${message.id}`);
+  for (const [index, message] of messages.entries()) {
+    console.info("=======================");
+    console.info(`Processing message ${index + 1}/${messages.length}: ${message.id}`);
 
     const lines = message.content.split("\n");
 
-    // const messageDate = new Date(new Date(message.createdTimestamp).setHours(11, 0, 0, 0));
-    // const date = new Date(messageDate.setDate(messageDate.getDate() - 1)).toLocaleDateString(
-    //   "en-GB"
-    // );
     const createdAt = new Date(message.createdTimestamp);
     const wordleDate = new Date(createdAt);
     wordleDate.setDate(createdAt.getDate() - 1);
-    wordleDate.setHours(11, 0, 0, 0);
+    wordleDate.setHours(12, 0, 0, 0);
+    console.info("Timestamp: " + message.createdTimestamp);
     console.info("Message date: " + createdAt.toLocaleDateString("en-GB"));
     console.info("Message time: " + createdAt.toLocaleTimeString("en-GB"));
     console.info("Wordle date: " + wordleDate.toLocaleDateString("en-GB"));
     console.info("Wordle time: " + wordleDate.toLocaleTimeString("en-GB"));
-    // console.info("Message Date: " + message.createdTimestamp);
 
     for (const line of lines) {
       // console.info("Processing line", line);
@@ -207,8 +206,6 @@ async function parseScores(interaction, messages) {
 
         // console.info("Processing user:", { discordId, username }, "with a score of", score, solved);
 
-        // wordlePromises.push(
-        //   (async () => {
         let dbUser = null;
 
         if (discordId) {
@@ -237,13 +234,11 @@ async function parseScores(interaction, messages) {
 
           if (!dbUser) {
             console.info(`Skipping user '${username}' (not found by name and no Discord ID)`);
-            // return;
             continue;
           }
         } else {
           // No identifier — skip
           console.info("Skipping unidentified user mention");
-          // return;
           continue;
         }
 
@@ -267,7 +262,12 @@ async function parseScores(interaction, messages) {
               date: wordleDate,
             },
           });
-          console.info("Wordle score recorded");
+          console.info(
+            "Wordle score recorded for " +
+              dbUser.globalName +
+              " on " +
+              wordleDate.toLocaleDateString("en-GB")
+          );
         } catch (error) {
           console.error(error.message);
         }
@@ -275,8 +275,7 @@ async function parseScores(interaction, messages) {
         scoresFound++;
       }
     }
-  });
-  // await Promise.all(wordlePromises);
+  }
   console.info("...Parsed scores.");
 
   await interaction.editReply(`Scraping complete. Found and saved ${scoresFound} scores.`);

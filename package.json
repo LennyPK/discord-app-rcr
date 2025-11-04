@@ -14,7 +14,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^6.18.0",
     "@prisma/client": "^6.18.0",
+    "better-sqlite3": "^12.4.1",
     "discord.js": "^14.24.2",
     "dotenv": "^17.2.3"
   },
