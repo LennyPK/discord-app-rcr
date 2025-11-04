@@ -8,11 +8,11 @@ module.exports = {
       option
         .setName("type")
         .setDescription("Select the leaderboard range")
-        .setRequired(true)
+        .setRequired(false)
         .addChoices(
           { name: "Weekly", value: "weekly" },
           { name: "Monthly", value: "monthly" },
-          { name: "All Time", value: "all" }
+          { name: "All Time (default)", value: "all" }
         )
     ),
   async execute(interaction) {

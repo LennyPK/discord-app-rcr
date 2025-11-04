@@ -20,7 +20,7 @@ const client = new Client({
  * It makes some properties non-nullable.
  */
 client.once(Events.ClientReady, (readyClient) => {
-  console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+  console.info(`Ready! Logged in as ${readyClient.user.tag}`);
 });
 
 client.on("error", (error) => {
@@ -56,14 +56,14 @@ for (const folder of commandFolders) {
     if ("data" in command && "execute" in command) {
       client.commands.set(command.data.name, command);
     } else {
-      console.log(
+      console.warn(
         `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
       );
     }
   }
 }
 
-console.log(`Scanned commands: ${client.commands.map((command) => command.data.name)}`);
+console.info(`Scanned commands: ${client.commands.map((command) => command.data.name)}`);
 
 /** Receiving Command Interactions */
 client.on(Events.InteractionCreate, async (interaction) => {

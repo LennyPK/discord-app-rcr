@@ -23,7 +23,7 @@ for (const folder of commandFolders) {
     if ("data" in command && "execute" in command) {
       commands.push(command.data.toJSON());
     } else {
-      console.log(
+      console.warn(
         `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
       );
     }
@@ -36,11 +36,16 @@ const rest = new REST().setToken(token);
 /** and deploy your commands! */
 (async () => {
   try {
-    console.log(`Started refreshing ${commands.length} application (/) commands.`);
+    console.info(`Started refreshing ${commands.length} application (/) commands.`);
 
     /** The put method is used to fully refresh all commands in the guild with the current set */
+    // await rest
+    //   .put(Routes.applicationGuildCommands(clientId, guildId), { body: commands })
+    //   .then((data) =>
+    //     console.info(`Successfully reloaded ${data.length} application (/) commands.`)
+    //   );
     await rest
-      .put(Routes.applicationGuildCommands(clientId, guildId), { body: commands })
+      .put(Routes.applicationCommands(clientId), { body: commands })
       .then((data) =>
         console.info(`Successfully reloaded ${data.length} application (/) commands.`)
       );
@@ -48,6 +53,9 @@ const rest = new REST().setToken(token);
     // await rest
     //   .put(Routes.applicationGuildCommands(clientId, guildId), { body: [] })
     //   .then(() => console.info("Successfully deleted all guild commands"));
+    // await rest
+    //   .put(Routes.applicationCommands(clientId), { body: [] })
+    //   .then(() => console.info("Successfully deleted all application commands"));
   } catch (error) {
     /** And of course, make sure you catch and log any errors! */
     console.error(error);

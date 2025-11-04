@@ -4,7 +4,7 @@ const { wait } = require("../../utils");
 
 async function updateMembers(interaction) {
   /** Fetch all guild members */
-  await interaction.editReply("Updating users...");
+  await interaction.editReply("-# Updating users...");
 
   await wait(1000);
 
@@ -39,10 +39,14 @@ async function updateMembers(interaction) {
             value:
               result.users.length === 0
                 ? "*No users synchronized*"
-                : result.users
-                    .slice(0, 20)
-                    .map((user) => `- <@${user.discordId}>`)
-                    .join("\n"),
+                : (() => {
+                    const shownUsers = result.users.slice(0, 10);
+                    const remaining = result.users.length - shownUsers.length;
+                    return (
+                      shownUsers.map((user) => `- <@${user.id}>`).join("\n") +
+                      (remaining > 0 ? `\n- ...and **${remaining}** more` : "")
+                    );
+                  })(),
           }
         )
         .setTimestamp(),
@@ -50,6 +54,7 @@ async function updateMembers(interaction) {
   });
 }
 
+/** ========== SAVE MEMBERS TO DB ========== */
 async function saveMembers(members) {
   console.info("Saving members to database...");
 
@@ -57,16 +62,16 @@ async function saveMembers(members) {
   if (!members || members.size === 0) return { createdUsers: 0, updatedUsers: 0 };
 
   /** Extract all Discord IDs (Collection.map passes the value as the first arg) */
-  const discordIds = members.map((member) => member.user?.id).filter(Boolean);
+  const ids = members.map((member) => member.user?.id).filter(Boolean);
 
   /** Fetch existing users */
   const existingUsers = await prisma.user.findMany({
-    where: { discordId: { in: discordIds } },
-    select: { discordId: true },
+    where: { id: { in: ids } },
+    select: { id: true },
   });
 
   /** Build a lookup Set */
-  const existingIds = new Set(existingUsers.map((user) => user.discordId));
+  const existingIds = new Set(existingUsers.map((user) => user.id));
 
   let created = 0;
   let updated = 0;
@@ -82,14 +87,14 @@ async function saveMembers(members) {
     const isExisting = existingIds.has(user.id);
 
     const savedUser = await prisma.user.upsert({
-      where: { discordId: id },
+      where: { id: id },
       update: {
         username: user.username,
         guildName: nickname || user.username,
         globalName: user.globalName || user.username,
       },
       create: {
-        discordId: id,
+        id: id,
         username: user.username,
         guildName: nickname || user.username,
         globalName: user.globalName || user.username,
@@ -111,11 +116,20 @@ async function saveMembers(members) {
   };
 }
 
+async function displayMembers(interaction, members) {
+  // TODO: Give an option to display a list and followUp with this list
+  //       You would need outputs from updateMembers or to refetch data
+}
+
+/** ========== EXECUTE COMMAND ========== */
 async function execute(interaction) {
   try {
+    // TODO: Change Ephemeral flag if content needs to be displayed
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    updateMembers(interaction);
+    await updateMembers(interaction);
+
+    // await interaction.followUp("Done");
   } catch (error) {
     console.error(error);
     await interaction.editReply("There was an error while executing this command!");
