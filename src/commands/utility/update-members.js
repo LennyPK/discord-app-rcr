@@ -22,16 +22,16 @@ async function updateMembers(interaction) {
     embeds: [
       new EmbedBuilder()
         .setColor(5763719)
-        .setTitle("✅ Member sync complete!")
+        .setTitle(":white_check_mark: Member sync complete!")
         .setDescription("All members have been synced with the database.")
         .addFields(
           {
-            name: "🆕 Created",
+            name: ":new: Created",
             value: `**${result.createdUsers}** ${result.createdUsers === 1 ? "user" : "users"}`,
             inline: true,
           },
           {
-            name: "🔄 Updated",
+            name: ":arrows_counterclockwise: Updated",
             value: `**${result.updatedUsers}** ${result.updatedUsers === 1 ? "user" : "users"}`,
             inline: true,
           }
@@ -109,7 +109,7 @@ async function displayMembers(interaction, verbose) {
   if (verbose) {
     await sendPaginatedList(interaction, members, {
       itemsPerPage: 10,
-      title: "👥 Synchronised Users",
+      title: ":busts_in_silhouette: Synchronised Users",
       description: "Server members synchronised with database",
       listTitle: "",
       formatItem: (user, idx) => `- <@${user.id}>`,

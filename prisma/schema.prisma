@@ -12,13 +12,9 @@ datasource db {
 }
 
 model User {
-  // id         Int      @id @default(autoincrement())
   id         String   @id @unique
-  // username    UsernameHistory[]
   username   String
-  // displayName NicknameHistory[]
   guildName  String
-  // globalName  GlobalNameHistory[]
   globalName String
   wordles    Wordle[]
 
