@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } = require("discord.js");
+const { prisma } = require("../../prisma-client");
 
 const LEADERBOARD = {
   ALL: "all",
@@ -50,21 +51,27 @@ async function leaderboard(interaction, type) {
   const daysInMonth = new Date(yesterday.getFullYear(), yesterday.getMonth() + 1, 0).getDate();
   const monthProgress = `${dayOfMonth}/${daysInMonth}`;
 
-  let title, description;
+  const month = now.toLocaleString("default", { month: "long" });
+  const year = now.getFullYear();
+
+  let title, description, footer;
 
   switch (type) {
     case LEADERBOARD.WEEKLY:
       title = ":date: Weekly Wordle Leaderboard";
-      description = "Rankings from Monday to today (**" + weekProgress + " days so far**).";
+      description = "Rankings based on Wordles from Monday up to today.";
+      footer = "Day " + weekProgress;
       break;
     case LEADERBOARD.MONTHLY:
       title = ":calendar_spiral: Monthly Wordle Leaderboard";
-      description =
-        "Rankings from the start of this month to today (**" + monthProgress + " days so far**).";
+      description = "Rankings based on Wordles from the start of this month up to today.";
+      footer = "Day " + monthProgress;
       break;
     case LEADERBOARD.ALL:
       title = ":earth_asia: All-Time Wordle Leaderboard";
       description = "Cumulative rankings  across all recorded Wordles";
+      footer =
+        (await prisma.wordle.groupBy({ by: ["date"], _count: { date: true } })).length + " Wordles";
   }
 
   return await interaction.reply({
@@ -73,7 +80,92 @@ async function leaderboard(interaction, type) {
         .setColor(5763719)
         .setTitle(title)
         .setDescription(description)
+        .setFooter({ text: footer })
         .setTimestamp(),
     ],
   });
+}
+
+async function getUserScores(dateFrom, dateTo = new Date()) {
+  // Get all scores within the date range
+  const scores = await prisma.wordle.findMany({
+    where: {
+      date: {
+        gte: dateFrom,
+        lte: dateTo,
+      },
+    },
+    include: {
+      user: true,
+    },
+    orderBy: {
+      date: "desc",
+    },
+  });
+
+  // Group scores by user
+  const userScores = new Map();
+
+  for (const score of scores) {
+    if (!userScores.has(score.userId)) {
+      userScores.set(score.userId, {
+        user: score.user,
+        scores: [],
+        recentScores: [],
+        totalGames: 0,
+        solvedGames: 0,
+        totalGuesses: 0,
+      });
+    }
+
+    const userStats = userScores.get(score.userId);
+    userStats.scores.push(score);
+    userStats.totalGames++;
+    if (score.solved) {
+      userStats.solvedGames++;
+      userStats.totalGuesses += score.score;
+    }
+    if (userStats.recentScores.length < 7) {
+      userStats.recentScores.push(score);
+    }
+  }
+
+  return Array.from(userScores.values()).map((stats) => ({
+    ...stats,
+    avgScore: stats.solvedGames > 0 ? (stats.totalGuesses / stats.solvedGames).toFixed(2) : 0,
+    solveRate: (stats.solvedGames / stats.totalGames).toFixed(2),
+    recentPattern: stats.recentScores
+      .map((s) => (s.solved ? s.score : "X"))
+      .reverse()
+      .join(""),
+  }));
+}
+
+async function getLeaderboardData(type) {
+  const now = new Date();
+  const maxGames = type === LEADERBOARD.WEEKLY ? 7 : 31;
+
+  let dateFrom;
+  if (type === LEADERBOARD.WEEKLY) {
+    const dayOfWeek = now.getDay();
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    dateFrom = new Date(now);
+    dateFrom.setDate(now.getDate() - daysToMonday);
+    dateFrom.setHours(0, 0, 0, 0);
+  } else if (type === LEADERBOARD.MONTHLY) {
+    dateFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+  } else {
+    dateFrom = new Date(0); // All time
+  }
+
+  const allTimeScores = await getUserScores(new Date(0));
+  const periodScores = type === LEADERBOARD.ALL ? allTimeScores : await getUserScores(dateFrom);
+
+  // Calculate scores and sort
+  const rankings = periodScores
+    .map((userStats) => ({
+      ...userStats,
+      score: wordleScore(userStats.scores, type),
+    }))
+    .sort((a, b) => b.score - a.score);
 }
