@@ -39,16 +39,16 @@ const rest = new REST().setToken(token);
     console.info(`Started refreshing ${commands.length} application (/) commands.`);
 
     /** The put method is used to fully refresh all commands in the guild with the current set */
-    // await rest
-    //   .put(Routes.applicationGuildCommands(clientId, guildId), { body: commands })
-    //   .then((data) =>
-    //     console.info(`Successfully reloaded ${data.length} application (/) commands.`)
-    //   );
     await rest
-      .put(Routes.applicationCommands(clientId), { body: commands })
+      .put(Routes.applicationGuildCommands(clientId, guildId), { body: commands })
       .then((data) =>
         console.info(`Successfully reloaded ${data.length} application (/) commands.`)
       );
+    // await rest
+    //   .put(Routes.applicationCommands(clientId), { body: commands })
+    //   .then((data) =>
+    //     console.info(`Successfully reloaded ${data.length} application (/) commands.`)
+    //   );
 
     // await rest
     //   .put(Routes.applicationGuildCommands(clientId, guildId), { body: [] })

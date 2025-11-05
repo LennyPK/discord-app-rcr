@@ -142,6 +142,12 @@ module.exports = {
     .setName("update_members")
     .setDescription(
       "Sync all server members to the database; create new user records and update existing ones."
+    )
+    .addBooleanOption((options) =>
+      options
+        .setName("verbose")
+        .setDescription("Display an interactive paginated list of members.")
+        .setRequired(true)
     ),
   execute,
   updateMembers,

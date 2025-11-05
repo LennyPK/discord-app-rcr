@@ -1,34 +1,47 @@
-const { SlashCommandBuilder, MessageFlags } = require("discord.js");
-const { wait } = require("../../utils");
+const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require("discord.js");
+const { wait, WORDLE_APP_ID } = require("../../utils");
 const { prisma } = require("../../prisma-client");
 const { updateMembers } = require("../utility/update-members");
+const { sendPaginatedList } = require("../../pagination");
+
+const RANGE = {
+  WEEK: "week",
+  MONTH: "month",
+  ALL: "all",
+};
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("wordle_init")
     .setDescription("Initialize the leaderboard and scrape the channel for users and scores")
-    .addStringOption((option) =>
-      option
+    .addStringOption((options) =>
+      options
         .setName("range")
         .setDescription(
           "Scrape messages until this date (YYYY-MM-DD). Defaults to the beginning of Wordle (May 2025)."
         )
-        .setRequired(false)
+        .setRequired(true)
         .addChoices(
           {
             name: `Last 7 days (since ${new Date(
               Date.now() - 7 * 24 * 60 * 60 * 1000
             ).toLocaleDateString("en-GB")})`,
-            value: "weekly",
+            value: RANGE.WEEK,
           },
           {
             name: `Last 30 days (since ${new Date(
               Date.now() - 30 * 24 * 60 * 60 * 1000
             ).toLocaleDateString("en-GB")})`,
-            value: "monthly",
+            value: RANGE.MONTH,
           },
-          { name: "All Time (default)", value: "all" }
+          { name: "All Time (default)", value: RANGE.ALL }
         )
+    )
+    .addBooleanOption((options) =>
+      options
+        .setName("verbose")
+        .setDescription("Display a summarised list of scores per member.")
+        .setRequired(true)
     ),
   async execute(interaction) {
     try {
@@ -36,6 +49,7 @@ module.exports = {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const range = interaction.options.getString("range");
+      const verbose = interaction.options.getBoolean("verbose");
 
       /** Fetch all guild members */
       // TODO: Enable after testing
@@ -43,7 +57,9 @@ module.exports = {
 
       // await wait(5000);
 
-      await scrapeMessages(interaction, range);
+      const scores = await scrapeMessages(interaction, range);
+
+      await displaySummary(interaction, verbose, scores);
     } catch (error) {
       console.error(error);
       await interaction.editReply("There was an error while executing this command!");
@@ -61,10 +77,10 @@ async function scrapeMessages(interaction, range) {
    */
   if (range) {
     switch (range) {
-      case "weekly":
+      case RANGE.WEEK:
         scanUntil = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         break;
-      case "monthly":
+      case RANGE.MONTH:
         scanUntil = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         break;
       default:
@@ -74,9 +90,9 @@ async function scrapeMessages(interaction, range) {
 
   await interaction.editReply({
     content:
-      "-# Scraping channel for Wordle scores since " +
+      "-# Scraping channel for Wordle scores since `" +
       scanUntil.toLocaleDateString("en-GB") +
-      "...",
+      "`...",
     embeds: [],
   });
   console.info(
@@ -90,25 +106,33 @@ async function scrapeMessages(interaction, range) {
 
   const wordleResults = await fetchResultsUntil(interaction, channel, scanUntil);
 
-  console.info(`Messages array length: ${wordleResults.length}`);
+  console.info(`Total Wordles: ${wordleResults.length}`);
   await interaction.editReply(
-    `-# Fetched ${wordleResults.length} messages since ${scanUntil.toLocaleDateString("en-GB")}`
+    "-# ...fetched a total of " +
+      wordleResults.length +
+      " Wordle" +
+      (wordleResults.length === 1 ? "" : "s") +
+      " since `" +
+      scanUntil.toLocaleDateString("en-GB") +
+      "`."
   );
-  console.info(wordleResults[wordleResults.length - 1].content);
-  console.info(new Date(wordleResults[wordleResults.length - 1].createdTimestamp).getDate());
+  if (wordleResults.length > 0) {
+    console.info(wordleResults[wordleResults.length - 1].content);
+    console.info(
+      new Date(wordleResults[wordleResults.length - 1].createdTimestamp).toLocaleDateString("en-GB")
+    );
+  }
 
   await wait(2000);
 
   // TODO: fetch
-  // console.info(wordleResults.map((message) => message.content));
-  parseScores(interaction, wordleResults);
+  return await parseScores(interaction, wordleResults);
 }
 
 async function fetchResultsUntil(interaction, channel, untilDate) {
   const allMessages = [];
   let lastId = undefined;
   const limit = 100;
-  const wordleAppId = "1211781489931452447";
   const resultRegex = /here are yesterday'?s results/i;
 
   while (true) {
@@ -131,7 +155,7 @@ async function fetchResultsUntil(interaction, channel, untilDate) {
       }
       if (
         message.author.bot &&
-        message.author.id === wordleAppId &&
+        message.author.id === WORDLE_APP_ID &&
         resultRegex.test(message.content)
       ) {
         allMessages.push(message);
@@ -143,9 +167,25 @@ async function fetchResultsUntil(interaction, channel, untilDate) {
 
     /** Update pagination marker */
     lastId = messages[messages.length - 1].id;
-
-    console.info(`Fetched ${allMessages.length} messages so far...`);
-    await interaction.editReply(`-# Fetched ${allMessages.length} messages so far...`);
+    // console.error(fetched.first());
+    console.info(
+      "...(" +
+        new Date(fetched.last().createdTimestamp).toLocaleDateString("en-GB") +
+        ") fetched " +
+        allMessages.length +
+        " Wordle" +
+        (allMessages.length === 1 ? "" : "s") +
+        " so far..."
+    );
+    await interaction.editReply(
+      "-# ...`(" +
+        new Date(fetched.last().createdTimestamp).toLocaleDateString("en-GB") +
+        ")` fetched " +
+        allMessages.length +
+        " Wordle" +
+        (allMessages.length === 1 ? "" : "s") +
+        " so far..."
+    );
 
     /** Optional: rate-limit safety pause */
     await wait(500);
@@ -155,8 +195,8 @@ async function fetchResultsUntil(interaction, channel, untilDate) {
 }
 
 async function parseScores(interaction, messages) {
-  console.info("Parsing scores...");
-  await interaction.editReply("-# Parsing scores...");
+  console.info("Parsing individual Wordle scores...");
+  await interaction.editReply("-# Parsing individual Wordle scores...");
 
   const scoreRegex = /(?:👑)?\s*([1-6X])\/6:\s*(.*)/;
   const userRegex = /(?:<@(\d+)>|@([a-zA-Z0-9_]+))/g;
@@ -180,16 +220,8 @@ async function parseScores(interaction, messages) {
     console.info("Wordle time: " + wordleDate.toLocaleTimeString("en-GB"));
 
     for (const line of lines) {
-      // console.info("Processing line", line);
-
       const scoreMatch = line.match(scoreRegex);
       if (!scoreMatch) continue;
-
-      // console.info("-----------------------");
-      // console.info("Full match:", scoreMatch[0]);
-      // console.info("Score value:", scoreMatch[1]);
-      // console.info("Users part:", scoreMatch[2]);
-      // console.info("-----------------------");
 
       const scoreValue = scoreMatch[1];
       const solved = scoreValue !== "X";
@@ -209,11 +241,11 @@ async function parseScores(interaction, messages) {
         let dbUser = null;
 
         if (discordId) {
-          // Prefer exact match on Discord ID (stored in the `id` field in the DB).
+          /** Prefer exact match on Discord ID (stored in the `id` field in the DB). */
           dbUser = await prisma.user.findUnique({ where: { id: discordId } });
 
           if (!dbUser) {
-            // Create a placeholder user linked to the Discord ID only.
+            /** Create a placeholder user linked to the Discord ID only. */
             dbUser = await prisma.user.create({
               data: {
                 id: discordId,
@@ -224,8 +256,9 @@ async function parseScores(interaction, messages) {
             });
           }
         } else if (username) {
-          // If only a name is present, try to resolve to an existing user by name.
-          // If not found, skip — do not create users based on name alone.
+          /** If only a name is present, try to resolve to an existing user by name.
+           * If not found, skip — do not create users based on name alone.
+           */
           dbUser = await prisma.user.findFirst({
             where: {
               OR: [{ globalName: username }, { username: username }, { guildName: username }],
@@ -237,7 +270,7 @@ async function parseScores(interaction, messages) {
             continue;
           }
         } else {
-          // No identifier — skip
+          /** No identifier — skip */
           console.info("Skipping unidentified user mention");
           continue;
         }
@@ -263,7 +296,9 @@ async function parseScores(interaction, messages) {
             },
           });
           console.info(
-            "Wordle score recorded for " +
+            "Wordle score [" +
+              score +
+              "] recorded for " +
               dbUser.globalName +
               " on " +
               wordleDate.toLocaleDateString("en-GB")
@@ -278,5 +313,37 @@ async function parseScores(interaction, messages) {
   }
   console.info("...Parsed scores.");
 
-  await interaction.editReply(`Scraping complete. Found and saved ${scoresFound} scores.`);
+  return scoresFound;
+}
+
+async function displaySummary(interaction, verbose, scoresFound) {
+  const users = await prisma.user.findMany({
+    where: { wordles: { some: {} } },
+    select: {
+      id: true,
+      _count: { select: { wordles: true } },
+    },
+    orderBy: { wordles: { _count: "desc" } },
+  });
+
+  if (!verbose) {
+    return await interaction.editReply({
+      content: null,
+      embeds: [
+        new EmbedBuilder()
+          .setColor(5763719)
+          .setTitle("✅ Scraping complete!")
+          .setDescription("Found and saved `" + scoresFound + "` Wordle scores."),
+      ],
+    });
+  }
+
+  await sendPaginatedList(interaction, users, {
+    itemsPerPage: 10,
+    title: "✅ Scraping complete!",
+    description: "Found and saved `" + scoresFound + "` Wordle scores.",
+    formatItem: (user, idx) => `- <@${user.id}>: ${user._count.wordles} Wordles`,
+    ephemeral: false,
+    followUp: true,
+  });
 }
