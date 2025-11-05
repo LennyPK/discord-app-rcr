@@ -23,6 +23,7 @@ const {
  * @param {boolean} [options.timeout=120000] - Pagination timeout in ms.
  * @param {boolean} [options.ephemeral=false] - Whether to make the message ephemeral.
  * @param {boolean} [options.followUp=false] - Whether to use followUp instead of reply.
+ * @param {boolean} [options.publicNavPerm=false] - Whether any user can access the pagination.
  */
 async function sendPaginatedList(interaction, items, options = {}) {
   if (!items || items.length === 0) throw new Error("No items provided for pagination.");
@@ -37,6 +38,7 @@ async function sendPaginatedList(interaction, items, options = {}) {
     timeout = 120000,
     ephemeral = false,
     followUp = false,
+    publicNavPerm = false,
   } = options;
 
   // Split items into pages
@@ -113,7 +115,7 @@ async function sendPaginatedList(interaction, items, options = {}) {
   const collector = msg.createMessageComponentCollector({ time: timeout });
 
   collector.on("collect", async (i) => {
-    if (i.user.id !== interaction.user.id) {
+    if (i.user.id !== interaction.user.id && !publicNavPerm) {
       return i.reply({
         content: "You can't control this pagination.",
         flags: MessageFlags.Ephemeral,

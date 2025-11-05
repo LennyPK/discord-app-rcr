@@ -48,14 +48,15 @@ module.exports = {
       // TODO: Change Ephemeral flag if content needs to be displayed
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+      /** Extract command options */
       const range = interaction.options.getString("range");
       const verbose = interaction.options.getBoolean("verbose");
 
       /** Fetch all guild members */
       // TODO: Enable after testing
-      // await updateMembers(interaction);
+      await updateMembers(interaction);
 
-      // await wait(5000);
+      await wait(5000);
 
       const scores = await scrapeMessages(interaction, range);
 
@@ -125,7 +126,7 @@ async function scrapeMessages(interaction, range) {
 
   await wait(2000);
 
-  // TODO: fetch
+  /** Parse scores and return for display */
   return await parseScores(interaction, wordleResults);
 }
 
@@ -167,7 +168,7 @@ async function fetchResultsUntil(interaction, channel, untilDate) {
 
     /** Update pagination marker */
     lastId = messages[messages.length - 1].id;
-    // console.error(fetched.first());
+
     console.info(
       "...(" +
         new Date(fetched.last().createdTimestamp).toLocaleDateString("en-GB") +
@@ -228,15 +229,13 @@ async function parseScores(interaction, messages) {
       const score = solved ? parseInt(scoreValue, 10) : null;
       const usersPart = scoreMatch[2];
 
-      // reset regex state before iterating matches for this line
+      /** reset regex state before iterating matches for this line */
       userRegex.lastIndex = 0;
       let userMatch;
 
       while ((userMatch = userRegex.exec(usersPart)) !== null) {
         const discordId = userMatch[1];
         const username = userMatch[2];
-
-        // console.info("Processing user:", { discordId, username }, "with a score of", score, solved);
 
         let dbUser = null;
 
@@ -276,7 +275,7 @@ async function parseScores(interaction, messages) {
         }
 
         try {
-          // Upsert the Wordle result for the found/created user
+          /** Upsert the Wordle result for the found/created user */
           await prisma.wordle.upsert({
             where: {
               userId_date: {
@@ -333,7 +332,8 @@ async function displaySummary(interaction, verbose, scoresFound) {
         new EmbedBuilder()
           .setColor(5763719)
           .setTitle("✅ Scraping complete!")
-          .setDescription("Found and saved `" + scoresFound + "` Wordle scores."),
+          .setDescription("Found and saved `" + scoresFound + "` Wordle scores.")
+          .setTimestamp(),
       ],
     });
   }
@@ -342,8 +342,10 @@ async function displaySummary(interaction, verbose, scoresFound) {
     itemsPerPage: 10,
     title: "✅ Scraping complete!",
     description: "Found and saved `" + scoresFound + "` Wordle scores.",
+    listTitle: "Total Wordles per User",
     formatItem: (user, idx) => `- <@${user.id}>: ${user._count.wordles} Wordles`,
     ephemeral: false,
     followUp: true,
+    publicNavPerm: true,
   });
 }

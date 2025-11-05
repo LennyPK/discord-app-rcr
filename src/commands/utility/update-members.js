@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require("discord.js");
 const { prisma } = require("../../prisma-client");
 const { wait } = require("../../utils");
+const { sendPaginatedList } = require("../../pagination");
 
 async function updateMembers(interaction) {
   /** Fetch all guild members */
@@ -33,20 +34,6 @@ async function updateMembers(interaction) {
             name: "🔄 Updated",
             value: `**${result.updatedUsers}** ${result.updatedUsers === 1 ? "user" : "users"}`,
             inline: true,
-          },
-          {
-            name: "👥 Synchronized Users",
-            value:
-              result.users.length === 0
-                ? "*No users synchronized*"
-                : (() => {
-                    const shownUsers = result.users.slice(0, 10);
-                    const remaining = result.users.length - shownUsers.length;
-                    return (
-                      shownUsers.map((user) => `- <@${user.id}>`).join("\n") +
-                      (remaining > 0 ? `\n- ...and **${remaining}** more` : "")
-                    );
-                  })(),
           }
         )
         .setTimestamp(),
@@ -116,9 +103,21 @@ async function saveMembers(members) {
   };
 }
 
-async function displayMembers(interaction, members) {
-  // TODO: Give an option to display a list and followUp with this list
-  //       You would need outputs from updateMembers or to refetch data
+async function displayMembers(interaction, verbose) {
+  const members = await prisma.user.findMany();
+
+  if (verbose) {
+    await sendPaginatedList(interaction, members, {
+      itemsPerPage: 10,
+      title: "👥 Synchronised Users",
+      description: "Server members synchronised with database",
+      listTitle: "",
+      formatItem: (user, idx) => `- <@${user.id}>`,
+      ephemeral: false,
+      followUp: true,
+      publicNavPerm: true,
+    });
+  }
 }
 
 /** ========== EXECUTE COMMAND ========== */
@@ -127,9 +126,12 @@ async function execute(interaction) {
     // TODO: Change Ephemeral flag if content needs to be displayed
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+    /** Extract command options */
+    const verbose = interaction.options.getBoolean("verbose");
+
     await updateMembers(interaction);
 
-    // await interaction.followUp("Done");
+    await displayMembers(interaction, verbose);
   } catch (error) {
     console.error(error);
     await interaction.editReply("There was an error while executing this command!");
@@ -146,7 +148,7 @@ module.exports = {
     .addBooleanOption((options) =>
       options
         .setName("verbose")
-        .setDescription("Display an interactive paginated list of members.")
+        .setDescription("Display the full list of members.")
         .setRequired(true)
     ),
   execute,
