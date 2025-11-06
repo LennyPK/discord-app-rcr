@@ -1,5 +1,3 @@
-// const leaderboardScore = wordleScore(gamesPlayed, maxGames, solveRate, avgGuesses);
-
 function wordleScore(wordleScores, leaderboardType) {
   const gamesPlayed = wordleScores.length;
   const maxGames = leaderboardType === "weekly" ? 7 : 30;
@@ -44,4 +42,4 @@ function wordleScore(wordleScores, leaderboardType) {
   return skillScore * participationMultiplier;
 }
 
-modules.export = { wordleScore };
+module.exports = { wordleScore };

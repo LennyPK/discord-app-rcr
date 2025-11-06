@@ -27,27 +27,57 @@ client.on("error", (error) => {
   console.error(`❌ error: ${error}`);
 });
 
-client.on(Events.MessageCreate, (message) => {
-  if (message.author.bot) {
-    console.info("This is a bot message");
-    return;
-  }
+/** ========== ========== ========== ========== */
+/** ========== Loading Message Files ========== */
+client.messageHandlers = new Collection();
 
-  if (message.content === "ping") {
-    message.reply({
-      content: "ping",
-    });
+const messageFoldersPath = path.join(__dirname, "messages");
+const messageFolders = fs.readdirSync(messageFoldersPath);
+
+for (const folder of messageFolders) {
+  const messagesPath = path.join(messageFoldersPath, folder);
+  const messageFiles = fs.readdirSync(messagesPath).filter((file) => file.endsWith(".js"));
+  for (const file of messageFiles) {
+    const filePath = path.join(messagesPath, file);
+    const messageHandler = require(filePath);
+    /** Set a new item in the Collection with the messageHandler name and the value as the exported module */
+    if ("condition" in messageHandler && "execute" in messageHandler) {
+      client.messageHandlers.set(messageHandler.name, messageHandler);
+    } else {
+      console.warn(
+        `[WARNING] The messageHandler at ${filePath} is missing a reuqired "condition" or "execute" property.`
+      );
+    }
+  }
+}
+
+console.info(`Scanned message handlers: ${client.messageHandlers.map((handler) => handler.name)}`);
+
+client.on(Events.MessageCreate, async (message) => {
+  for (const handler of client.messageHandlers.values()) {
+    try {
+      if (await handler.condition(message)) {
+        await handler.execute(message);
+        break;
+      }
+    } catch (error) {
+      console.error(error);
+      await message.reply({ content: "There was an error while executing this command!" });
+    }
   }
 });
+/** ========== ========== ========== ========== */
+/** ========== ========== ========== ========== */
 
-/** Loading Command Files */
+/** ========== ========== ========== ========== */
+/** ========== Loading Command Files ========== */
 client.commands = new Collection();
 
-const foldersPath = path.join(__dirname, "commands");
-const commandFolders = fs.readdirSync(foldersPath);
+const commandFoldersPath = path.join(__dirname, "commands");
+const commandFolders = fs.readdirSync(commandFoldersPath);
 
 for (const folder of commandFolders) {
-  const commandsPath = path.join(foldersPath, folder);
+  const commandsPath = path.join(commandFoldersPath, folder);
   const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".js"));
   for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
@@ -96,6 +126,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 });
+/** ========== ========== ========== ========== */
+/** ========== ========== ========== ========== */
 
 /** Log in to Discord with your client's token */
 client.login(token);
