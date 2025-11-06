@@ -112,7 +112,7 @@ async function displayMembers(interaction, verbose) {
       title: ":busts_in_silhouette: Synchronised Users",
       description: "Server members synchronised with database",
       listTitle: "",
-      formatItem: (user, idx) => `- <@${user.id}>`,
+      formatItem: (user, index) => `- <@${user.id}>`,
       ephemeral: false,
       followUp: true,
       publicNavPerm: true,

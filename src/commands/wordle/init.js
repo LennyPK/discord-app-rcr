@@ -346,7 +346,7 @@ async function displaySummary(interaction, verbose, scoresFound) {
     title: "✅ Scraping complete!",
     description: "Found and saved `" + scoresFound + "` Wordle scores.",
     listTitle: "Total Wordles per User",
-    formatItem: (user, idx) => `- <@${user.id}>: ${user._count.wordles} Wordles`,
+    formatItem: (user, index) => `- <@${user.id}>: ${user._count.wordles} Wordles`,
     ephemeral: false,
     followUp: true,
     publicNavPerm: true,
