@@ -1,8 +1,11 @@
 const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require("discord.js");
-const { wait, WORDLE_APP_ID } = require("../../utils");
+const { wait } = require("../../utils");
 const { prisma } = require("../../prisma-client");
 const { updateMembers } = require("../utility/update-members");
 const { sendPaginatedList } = require("../../pagination");
+require("dotenv/config");
+
+const wordleAppId = process.env.WORDLE_APP_ID;
 
 const RANGE = {
   WEEK: "week",
@@ -156,7 +159,7 @@ async function fetchResultsUntil(interaction, channel, untilDate) {
       }
       if (
         message.author.bot &&
-        message.author.id === WORDLE_APP_ID &&
+        message.author.id === wordleAppId &&
         resultRegex.test(message.content)
       ) {
         allMessages.push(message);

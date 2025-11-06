@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } = require("discord.js");
 const { prisma } = require("../../prisma-client");
+const { wordleScore } = require("./utils/scoring");
 
 const LEADERBOARD = {
   ALL: "all",
@@ -63,7 +64,7 @@ async function leaderboard(interaction, type) {
       footer = "Day " + weekProgress;
       break;
     case LEADERBOARD.MONTHLY:
-      title = ":calendar_spiral: Monthly Wordle Leaderboard";
+      title = ":calendar_spiral: " + month + " Wordle Leaderboard";
       description = "Rankings based on Wordles from the start of this month up to today.";
       footer = "Day " + monthProgress;
       break;
@@ -74,12 +75,52 @@ async function leaderboard(interaction, type) {
         (await prisma.wordle.groupBy({ by: ["date"], _count: { date: true } })).length + " Wordles";
   }
 
+  const rankings = await getLeaderboardData(type);
+
+  const medals = [":first_place:", ":second_place:", ":third_place:"];
+  const leaderboardText = rankings
+    .slice(0, 10)
+    .map((entry, index) => {
+      const medal = medals[index] || `${index + 1}.`;
+      const id = entry.user.id;
+      // TODO: Add position change indicators
+      const movement = "=";
+      const lastPlayed = entry.recentScores[0]?.date.toLocaleDateString("en-GB", {
+        month: "short",
+        day: "numeric",
+      });
+
+      const monthlyStats = `Monthly: ${entry.avgScore} avg • ${entry.totalGames}/${
+        type === LEADERBOARD.WEEKLY ? 7 : 31
+      } games`;
+      const totalGames = entry.scores.length;
+      const recentScores = entry.recentPattern || "No recent games";
+
+      return `${medal} <@${id}> ${movement} (${lastPlayed})
+${monthlyStats}
+Recent: ${recentScores}`;
+    })
+    .join("\n\n");
+
+  // Calculate statistics
+  const stats = {
+    activePlayers: rankings.length,
+    monthlyGames: rankings.reduce((sum, entry) => sum + entry.totalGames, 0),
+    avgScore:
+      rankings.reduce((sum, entry) => sum + parseFloat(entry.avgScore), 0) / rankings.length,
+  };
+
+  const statsText = `📊 Statistics
+Active Players: ${stats.activePlayers}
+Monthly Games: ${stats.monthlyGames}
+Monthly Avg: ${stats.avgScore.toFixed(2)}`;
+
   return await interaction.reply({
     embeds: [
       new EmbedBuilder()
         .setColor(5763719)
         .setTitle(title)
-        .setDescription(description)
+        .setDescription(description + "\n\n" + leaderboardText + "\n\n" + statsText)
         .setFooter({ text: footer })
         .setTimestamp(),
     ],
@@ -137,7 +178,7 @@ async function getUserScores(dateFrom, dateTo = new Date()) {
     recentPattern: stats.recentScores
       .map((s) => (s.solved ? s.score : "X"))
       .reverse()
-      .join(""),
+      .join(" | "),
   }));
 }
 
@@ -162,7 +203,7 @@ async function getLeaderboardData(type) {
   const periodScores = type === LEADERBOARD.ALL ? allTimeScores : await getUserScores(dateFrom);
 
   // Calculate scores and sort
-  const rankings = periodScores
+  return periodScores
     .map((userStats) => ({
       ...userStats,
       score: wordleScore(userStats.scores, type),
