@@ -17,54 +17,63 @@ module.exports = {
       include: { wordles: true },
     });
 
-    const overallStats = await getOverallStats(user);
+    const overallStats = await getOverallStatistics(user);
     const rankings = await getRankings(user, allUsers);
     const recentActivity = await getRecentActivity(user);
     const lastGames = await getLastGames(user, 10);
-
-    // console.info(user);
-    // console.info(overallStats);
 
     await interaction.reply({
       embeds: [
         new EmbedBuilder()
           .setColor(5763719)
-          .setTitle("📊 Wordle Stats for " + user.globalName)
+          .setTitle(":star2: Wordle Stats for " + user.globalName)
           .setDescription("Summary of your Wordle stats")
           .addFields(
             {
-              name: "🏆 Overall Statistics",
-              value: `Total Games: ${
-                overallStats.totalGames
-              }\nAverage Score: ${overallStats.averageScore.toFixed(2)}\nBest Streak: ${
-                overallStats.bestStreak
-              }\nCurrent Streak: ${overallStats.currentStreak}`,
+              name: ":medal: Ranking",
+              value: "Rank: `" + rankings.rank + "/" + rankings.total + "`",
+              inline: false,
+            },
+            { name: "", value: "", inline: false },
+            {
+              name: ":clipboard: Overall Statistics",
+              value:
+                "Total Games: `" +
+                overallStats.totalGames +
+                "`\nAverage Score: `" +
+                overallStats.averageScore.toFixed(2) +
+                "`\nBest Streak: `" +
+                overallStats.bestStreak +
+                "`\nCurrent Streak: `" +
+                overallStats.currentStreak +
+                "`",
               inline: true,
             },
+            { name: "\u200B", value: "\u200B", inline: true },
             {
-              name: "🏅 Ranking",
-              value: `Rank: ${rankings.rank}/${rankings.total}`,
-              inline: true,
-            },
-            {
-              name: "🔔 Recent Activity",
-              value: `This Week: ${recentActivity.recentGames.length} games\nRecent Average: ${
-                recentActivity.recentGames.length
+              name: ":bell: Recent Activity",
+              value:
+                "This Week: `" +
+                recentActivity.recentGames.length +
+                " games`\nRecent Average: `" +
+                (recentActivity.recentGames.length
                   ? (
                       recentActivity.recentGames.reduce((a, w) => a + w.score, 0) /
                       recentActivity.recentGames.length
                     ).toFixed(2)
-                  : "N/A"
-              }\nLast Day Missed: ${
-                recentActivity.lastMissed
+                  : "N/A") +
+                "`\nLast Day Missed: `" +
+                (recentActivity.lastMissed
                   ? recentActivity.lastMissed.date.toLocaleDateString("en-GB")
-                  : "N/A"
-              }`,
+                  : "N/A") +
+                "`",
               inline: true,
             },
+            { name: "", value: "", inline: false },
             {
-              name: "⚔️ Last 10 Games",
+              name: ":crossed_swords: Last 10 Games",
               value: `${lastGames.games.join(" • ")}`,
+              inline: false,
             }
           )
           .setFooter({
@@ -76,11 +85,12 @@ module.exports = {
   },
 };
 
-async function getOverallStats(user) {
+async function getOverallStatistics(user) {
   const totalGames = user.wordles.length;
 
-  const solvedGames = user.wordles.filter((w) => w.solved);
-  const averageScore = solvedGames.reduce((acc, w) => acc + (w.score ?? 0), 0) / solvedGames.length;
+  const solvedGames = user.wordles.filter((wordle) => wordle.solved);
+  const averageScore =
+    solvedGames.reduce((acc, wordle) => acc + (wordle.score ?? 0), 0) / solvedGames.length;
 
   const streaks = user.wordles.sort((a, b) => a.date.getTime() - b.date.getTime());
 
@@ -137,7 +147,7 @@ async function getLastGames(user, amount) {
   const games = user.wordles
     .sort((a, b) => b.date.getTime() - a.date.getTime())
     .slice(0, amount)
-    .map((w) => (w.solved ? w.score : "X"))
+    .map((w) => (w.solved ? "`" + w.score + "`" : "`×`"))
     .reverse(); // optional, to show oldest → newest
 
   return { games };

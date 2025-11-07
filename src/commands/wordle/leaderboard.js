@@ -110,7 +110,7 @@ Recent: ${recentScores}`;
       rankings.reduce((sum, entry) => sum + parseFloat(entry.avgScore), 0) / rankings.length,
   };
 
-  const statsText = `📊 Statistics
+  const statsText = `:bar_chart: Statistics
 Active Players: ${stats.activePlayers}
 Monthly Games: ${stats.monthlyGames}
 Monthly Avg: ${stats.avgScore.toFixed(2)}`;

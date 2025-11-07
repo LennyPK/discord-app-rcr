@@ -217,7 +217,6 @@ async function parseScores(interaction, messages) {
     const wordleDate = new Date(createdAt);
     wordleDate.setDate(createdAt.getDate() - 1);
     wordleDate.setHours(12, 0, 0, 0);
-    console.info("Timestamp: " + message.createdTimestamp);
     console.info("Message date: " + createdAt.toLocaleDateString("en-GB"));
     console.info("Message time: " + createdAt.toLocaleTimeString("en-GB"));
     console.info("Wordle date: " + wordleDate.toLocaleDateString("en-GB"));
