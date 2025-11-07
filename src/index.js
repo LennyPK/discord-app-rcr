@@ -1,4 +1,11 @@
-const { Client, Events, GatewayIntentBits, Collection, MessageFlags } = require("discord.js");
+const {
+  Client,
+  Events,
+  GatewayIntentBits,
+  Collection,
+  MessageFlags,
+  ActivityType,
+} = require("discord.js");
 const fs = require("node:fs");
 const path = require("node:path");
 require("dotenv/config");
@@ -21,6 +28,13 @@ const client = new Client({
  */
 client.once(Events.ClientReady, (readyClient) => {
   console.info(`Ready! Logged in as ${readyClient.user.tag}`);
+
+  /** Set custom status */
+  readyClient.user.setActivity({
+    name: "meow",
+    type: ActivityType.Streaming,
+    url: "https://www.youtube.com/watch?v=ozYQBcNz4J4",
+  });
 });
 
 client.on("error", (error) => {
