@@ -29,7 +29,7 @@ module.exports = [
       "no-console": "off",
       "no-empty-function": "error",
       "no-floating-decimal": "error",
-      "no-inline-comments": "warn",
+      "no-inline-comments": "off",
       "no-lonely-if": "error",
       "no-multi-spaces": "error",
       "no-multiple-empty-lines": ["error", { max: 2, maxEOF: 1, maxBOF: 0 }],

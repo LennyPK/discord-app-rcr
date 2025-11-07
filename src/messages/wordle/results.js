@@ -137,7 +137,9 @@ module.exports = {
     } else {
       const summary = [
         `Wordle date: ${wordleDate.toLocaleDateString("en-GB")}`,
-        newWordles.map((wordle) => `- [${wordle.score || "X"}] <@${wordle.userId}>`).join("\n"),
+        newWordles
+          .map((wordle, index) => `${index + 1}. [${wordle.score || "X"}] <@${wordle.userId}>`)
+          .join("\n"),
       ].join("\n");
 
       console.info("New Wordle added to database:");
