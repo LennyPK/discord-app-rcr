@@ -186,10 +186,7 @@ async function getRecentActivity(user) {
   endOfPeriod.setHours(0, 0, 0, 0);
 
   const participatedGames = fullTimeline.filter(
-    (entry) =>
-      entry.date >= startOfPeriod &&
-      entry.date < endOfPeriod &&
-      (entry.status === "solved" || entry.status === "failed")
+    (entry) => entry.date >= startOfPeriod && entry.date < endOfPeriod && entry.status !== "missing"
   );
 
   const weekGamesSummary = `This Week: \`${participatedGames.length}\`/\`${denominator} games\``;
@@ -197,7 +194,7 @@ async function getRecentActivity(user) {
   /** Recent Average */
   const solvedGames = participatedGames.filter((entry) => entry.status === "solved");
   const recentAverage = solvedGames.length
-    ? (solvedGames.reduce((acc, wordle) => acc + wordle.score, 0) / solvedGames.length).toFixed(2)
+    ? (solvedGames.reduce((acc, wordle) => acc + wordle.score, 0) / solvedGames.length).toFixed(1)
     : "N/A";
 
   const averageSummary = `Recent Average: \`${recentAverage}\``;
