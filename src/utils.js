@@ -2,4 +2,8 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-module.exports = { wait };
+function valueMultiples(value) {
+  return value > 1 ? "s" : "";
+}
+
+module.exports = { wait, valueMultiples };
