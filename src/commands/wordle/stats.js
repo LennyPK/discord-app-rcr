@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const { prisma } = require("../../prisma-client");
 const { wordleScore } = require("./utils/scoring");
 const { valueMultiples } = require("../../utils");
+const { getFirstRecord, getLastRecord, buildFullTimeline } = require("./utils/timeline");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -238,7 +239,7 @@ async function getLastGames(user, amount) {
   const leftLabel = "newer";
   const rightLabel = "older";
   const totalLength = visibleGames.length;
-  const spacing = Math.max(1, totalLength - leftLabel.length - rightLabel.length - 6);
+  const spacing = Math.max(1, totalLength - leftLabel.length - rightLabel.length - 10);
   const labels = leftLabel + " <<" + "=".repeat(spacing) + "<< " + rightLabel;
 
   const summary = `${games}\n-# ${labels}`;
@@ -246,45 +247,45 @@ async function getLastGames(user, amount) {
   return { summary };
 }
 
-async function getFirstRecord() {
-  return await prisma.wordle.findFirst({
-    select: { date: true, user: true },
-    orderBy: { date: "asc" },
-  });
-}
+// async function getFirstRecord() {
+//   return await prisma.wordle.findFirst({
+//     select: { date: true, user: true },
+//     orderBy: { date: "asc" },
+//   });
+// }
 
-async function getLastRecord() {
-  return await prisma.wordle.findFirst({
-    select: { date: true },
-    orderBy: { date: "desc" },
-  });
-}
+// async function getLastRecord() {
+//   return await prisma.wordle.findFirst({
+//     select: { date: true },
+//     orderBy: { date: "desc" },
+//   });
+// }
 
-async function buildFullTimeline(wordles, startDate, endDate) {
-  const wordleMap = new Map();
+// async function buildFullTimeline(wordles, startDate, endDate) {
+//   const wordleMap = new Map();
 
-  for (const wordle of wordles) {
-    const key = wordle.date.toLocaleDateString("en-GB");
-    wordleMap.set(key, wordle);
-  }
+//   for (const wordle of wordles) {
+//     const key = wordle.date.toLocaleDateString("en-GB");
+//     wordleMap.set(key, wordle);
+//   }
 
-  const timeline = [];
-  const current = new Date(startDate);
-  const last = new Date(endDate);
+//   const timeline = [];
+//   const current = new Date(startDate);
+//   const last = new Date(endDate);
 
-  while (current <= last) {
-    const key = current.toLocaleDateString("en-GB");
-    const wordle = wordleMap.get(key);
-    let status = "missing";
-    let score = null;
+//   while (current <= last) {
+//     const key = current.toLocaleDateString("en-GB");
+//     const wordle = wordleMap.get(key);
+//     let status = "missing";
+//     let score = null;
 
-    if (wordle) {
-      status = wordle.solved ? "solved" : "failed";
-      score = wordle.score;
-    }
+//     if (wordle) {
+//       status = wordle.solved ? "solved" : "failed";
+//       score = wordle.score;
+//     }
 
-    timeline.push({ date: new Date(current), status, score });
-    current.setDate(current.getDate() + 1);
-  }
-  return timeline;
-}
+//     timeline.push({ date: new Date(current), status, score });
+//     current.setDate(current.getDate() + 1);
+//   }
+//   return timeline;
+// }
