@@ -3,7 +3,7 @@ function wait(ms) {
 }
 
 function valueMultiples(value) {
-  return value > 1 ? "s" : "";
+  return value !== 1 ? "s" : "";
 }
 
 module.exports = { wait, valueMultiples };

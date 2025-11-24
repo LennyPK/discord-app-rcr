@@ -190,7 +190,7 @@ async function getRecentActivity(user) {
     (entry) => entry.date >= startOfPeriod && entry.date < endOfPeriod && entry.status !== "missing"
   );
 
-  const weekGamesSummary = `This Week: \`${participatedGames.length}\`/\`${denominator} games\``;
+  const weekGamesSummary = `This Week: \`${participatedGames.length}\`/\`${denominator} Wordles\``;
 
   /** Recent Average */
   const solvedGames = participatedGames.filter((entry) => entry.status === "solved");
