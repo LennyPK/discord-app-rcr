@@ -59,14 +59,16 @@ function calculateScore(timeline) {
 
 /**
  * Score and rank every user who played at least once in the date range.
+ * Blacklisted users (`excluded`) are left out unless `includeExcluded` is set.
  *
  * @param {{ from: Date, to: Date, days: number } | null} range From `getPeriodRange`.
+ * @param {{ includeExcluded?: boolean }} [options]
  * @returns {Promise<Array<{ user: object, score: number, metrics: object }>>} Sorted best first.
  */
-async function rankPlayers(range) {
+async function rankPlayers(range, { includeExcluded = false } = {}) {
   if (!range || range.days === 0) return [];
 
-  const users = await getAllUsers();
+  const users = (await getAllUsers()).filter((user) => includeExcluded || !user.excluded);
 
   const ranked = await Promise.all(
     users.map(async (user) => {

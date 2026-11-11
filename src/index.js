@@ -111,6 +111,17 @@ console.info(`Scanned commands: ${client.commands.map((command) => command.data.
 
 /** Receiving Command Interactions */
 client.on(Events.InteractionCreate, async (interaction) => {
+  /** Autocomplete suggestions for command options */
+  if (interaction.isAutocomplete()) {
+    const command = interaction.client.commands.get(interaction.commandName);
+    try {
+      await command?.autocomplete?.(interaction);
+    } catch (error) {
+      console.error(error);
+    }
+    return;
+  }
+
   /** Ignore if this isn't an interaction with a command */
   if (!interaction.isChatInputCommand()) return;
 

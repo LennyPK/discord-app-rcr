@@ -16,6 +16,8 @@ model User {
   username   String
   guildName  String
   globalName String
+  /// Hidden from leaderboards (scores are still recorded)
+  excluded   Boolean  @default(false)
   wordles    Wordle[]
 
   @@index([username])

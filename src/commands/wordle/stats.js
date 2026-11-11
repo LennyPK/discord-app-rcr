@@ -84,11 +84,15 @@ module.exports = {
 
 async function getRankings(user) {
   /** Same all-time ranking as `/wordle_leaderboard type:all` */
-  const rankings = await rankPlayers(await getPeriodRange(PERIOD.ALL));
+  const everyone = await rankPlayers(await getPeriodRange(PERIOD.ALL), { includeExcluded: true });
+  const rankings = everyone.filter((entry) => !entry.user.excluded);
 
+  const own = everyone.find((entry) => entry.user.id === user.id);
+  const score = own ? own.score : 0;
+
+  /** Blacklisted players can still see their own score, but aren't ranked */
   const index = rankings.findIndex((entry) => entry.user.id === user.id);
-  const rank = index === -1 ? "-" : index + 1;
-  const score = index === -1 ? 0 : rankings[index].score;
+  const rank = user.excluded ? "Hidden" : index === -1 ? "-" : index + 1;
 
   const summary = `Rank: \`${rank}\`/\`${rankings.length}\``;
   const scoreSummary = `Score: \`${score.toFixed(2)}\``;
