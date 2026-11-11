@@ -13,13 +13,13 @@ A Discord bot that automatically tracks and displays Wordle game statistics for 
 ## Technology Stack
 
 - **Runtime**: Node.js with CommonJS modules
-- **Discord Integration**: discord.js v14.24.2
-- **Database**: SQLite with Prisma ORM v6.18.0
+- **Discord Integration**: discord.js v14
+- **Database**: SQLite with Prisma ORM v6 (better-sqlite3 adapter)
 - **Development**: ESLint, TypeScript definitions, nodemon
 
 ## Prerequisites
 
-- Node.js (v16 or higher recommended)
+- Node.js v18.18 or higher (required by Prisma 6)
 - A Discord bot token from the [Discord Developer Portal](https://discord.com/developers/applications)
 - Discord Developer Mode enabled (for obtaining IDs)
 
@@ -38,12 +38,22 @@ A Discord bot that automatically tracks and displays Wordle game statistics for 
    npm install
    ```
 
-3. Set up the database:
+3. Set up the database (creates `prisma/dev.db` and generates the Prisma client):
 
    ```bash
+   npx prisma migrate deploy
    npx prisma generate
-   npx prisma migrate dev
    ```
+
+   If you already have a database that was created with `db push` before migrations were
+   baselined, mark the baseline as applied once instead of deploying:
+
+   ```bash
+   npx prisma migrate resolve --applied 0_init
+   ```
+
+   To change the schema later, edit `prisma/schema.prisma` and run `npm run db:migrate`
+   (`npx prisma migrate dev --name <change>`). `npm run db:studio` opens a database browser.
 
 ## Configuration
 
@@ -56,7 +66,8 @@ CLIENT_ID=your-client-id-here
 GUILD_ID=your-guild-id-here
 
 # Database Configuration
-DATABASE_URL=file:./prisma/dev.db
+# Relative paths are resolved from the prisma/ folder
+DATABASE_URL=file:./dev.db
 
 # Wordle Bot Configuration
 WORDLE_APP_ID=wordle_bot_user_id_here
@@ -100,8 +111,10 @@ node src/register-commands.js
 
 - `/wordle_leaderboard [type]` - Display weekly, monthly, yearly, or all-time rankings
 - `/wordle_stats` - View your personal Wordle statistics and performance metrics
-- `/wordle_init [range] [verbose]` - Admin command to backfill historical Wordle data
+- `/wordle_init [range] [verbose]` - Backfill historical Wordle data by scanning the channel it's run in
 - `/update_members [verbose]` - Sync Discord guild members to the database
+- `/wordle_blacklist add|remove|list` - Hide players from the leaderboards (Manage Server only). Their scores are still recorded, and they can still use `/wordle_stats`
+- `/ping` - Check the bot is online, with response time and uptime
 
 ## How It Works
 
@@ -127,19 +140,31 @@ Playing more always raises your score, and failing is worth more than skipping. 
 
 The bot uses two primary models:
 
-- **User**: Stores Discord user information (ID, username, display names)
+- **User**: Stores Discord user information (ID, username, display names) and whether the player is hidden from leaderboards
 - **Wordle**: Tracks individual game results (date, score, solved status) with a foreign key to User
 
 ## Project Structure
 
 ```shell
+prisma/
+├── schema.prisma               # Database schema
+└── migrations/                 # Migration history (0_init is the baseline)
 src/
-├── index.js                    # Bot entry point and initialization
+├── index.js                    # Bot entry point: loads commands and message handlers
+├── env.js                      # Loads .env from the project root
 ├── prisma-client.js            # Prisma client singleton
-├── register-commands.js        # Command registration utility
+├── pagination.js               # Paginated embed helper
+├── register-commands.js        # Registers slash commands with Discord
+├── utils.js                    # Small shared helpers
 ├── commands/
-│   ├── wordle/                 # Wordle tracking commands
-│   └── utility/                # Utility commands
+│   ├── utility/                # /ping, /update_members
+│   └── wordle/                 # /wordle_* commands
+│       └── utils/
+│           ├── periods.js      # Leaderboard date ranges
+│           ├── results.js      # Parsing and saving Wordle results posts
+│           ├── scoring.js      # Scoring and ranking
+│           ├── timeline.js     # Day-by-day history per player
+│           └── user.js         # User queries
 └── messages/
-    └── wordle/                 # Message handlers for score capture
+    └── wordle/                 # Captures the daily results post
 ```
