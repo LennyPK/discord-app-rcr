@@ -5,7 +5,7 @@ A Discord bot that automatically tracks and displays Wordle game statistics for 
 ## Features
 
 - **🎯 Real-time Score Capture**: Automatically monitors and parses Wordle results posted by the Wordle App Bot
-- **📊 Interactive Leaderboards**: View weekly, monthly, and all-time rankings with custom scoring algorithms
+- **📊 Interactive Leaderboards**: View weekly, monthly, yearly, and all-time rankings
 - **📈 Personal Statistics**: Track individual performance metrics including solve rates, streaks, and average guesses
 - **🔄 Historical Backfill**: Admin command to scrape past channel messages and populate the database
 - **👥 User Synchronization**: Automatically syncs Discord guild members to the database
@@ -95,7 +95,7 @@ node src/register-commands.js
 
 ### Available Commands
 
-- `/wordle_leaderboard [type]` - Display weekly, monthly, or all-time rankings
+- `/wordle_leaderboard [type]` - Display weekly, monthly, yearly, or all-time rankings
 - `/wordle_stats` - View your personal Wordle statistics and performance metrics
 - `/wordle_init [range] [verbose]` - Admin command to backfill historical Wordle data
 - `/update_members [verbose]` - Sync Discord guild members to the database
@@ -104,7 +104,21 @@ node src/register-commands.js
 
 The bot monitors messages from a designated Wordle App Bot and automatically captures scores when daily results are posted. Scores are parsed using regex patterns to extract user mentions and guess counts, then stored in a SQLite database with a composite unique key ensuring one score per user per day.
 
-The scoring algorithm balances skill metrics (solve rate and guess efficiency) with participation incentives, calculating composite scores for leaderboard rankings.
+### Scoring
+
+Every day in the leaderboard period earns points:
+
+| Result | Points |
+| ------ | ------ |
+| Solved in 1 / 2 / 3 / 4 / 5 / 6 | 100 / 90 / 80 / 70 / 60 / 50 |
+| Failed (X) | 25 |
+| Didn't play | 0 |
+
+```text
+score = average points per day × (0.7 + 0.3 × days played ÷ days in period)
+```
+
+Playing more always raises your score, and failing is worth more than skipping. Periods run up to yesterday's Wordle (or the latest recorded results): weekly from Monday, monthly from the 1st, yearly from 1 January, and all-time from the first recorded Wordle. Players who join late are penalised on all-time but start fresh on each new week, month and year.
 
 ## Database Schema
 

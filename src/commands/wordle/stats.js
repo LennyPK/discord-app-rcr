@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require("discord.js");
 const { prisma } = require("../../prisma-client");
 const { calculateScore, rankPlayers } = require("./utils/scoring");
+const { PERIOD, getPeriodRange } = require("./utils/periods");
 const { valueMultiples } = require("../../utils");
 const { getFirstRecord, getLastRecord, buildFullTimeline } = require("./utils/timeline");
 
@@ -83,7 +84,7 @@ module.exports = {
 
 async function getRankings(user) {
   /** Same all-time ranking as `/wordle_leaderboard type:all` */
-  const rankings = await rankPlayers();
+  const rankings = await rankPlayers(await getPeriodRange(PERIOD.ALL));
 
   const index = rankings.findIndex((entry) => entry.user.id === user.id);
   const rank = index === -1 ? "-" : index + 1;

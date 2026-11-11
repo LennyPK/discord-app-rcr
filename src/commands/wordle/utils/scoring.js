@@ -1,73 +1,83 @@
-const { getFirstRecord, getLastRecord, buildFullTimeline } = require("./timeline");
+const { buildFullTimeline } = require("./timeline");
 const { getAllUsers } = require("./user");
 
 const MAX_GUESSES = 6;
+/** Points for a solve in 6 guesses; each guess fewer adds GUESS_POINTS (1 guess = 100) */
+const MIN_SOLVE_POINTS = 50;
+const GUESS_POINTS = 10;
+/** Points for a failed Wordle (X): less than any solve, more than skipping the day */
+const FAIL_POINTS = 25;
+
+/**
+ * Points earned for a single day.
+ * Solved: 1 = 100, 2 = 90, 3 = 80, 4 = 70, 5 = 60, 6 = 50. Failed: 25. Didn't play: 0.
+ *
+ * @param {{ status: "solved" | "failed" | "missing", score: number | null }} entry
+ */
+function dayPoints(entry) {
+  if (entry.status === "solved") return MIN_SOLVE_POINTS + (MAX_GUESSES - entry.score) * GUESS_POINTS;
+  if (entry.status === "failed") return FAIL_POINTS;
+  return 0;
+}
 
 /**
  * Score a player's Wordle timeline (0–100).
  *
- * - Solve bonus (0–50): solved games / days available (missed days count against you).
- *   Note `metrics.solveRate` is solved / played, for display.
- * - Guess efficiency (0–50): 1 guess = 50, 6 guesses = 0, averaged over solved games only.
- * - Participation multiplier (0.7–1.0): 70% baseline + 30% scaled by games played / days available.
+ *   score = average points per day × participation
+ *   participation = 0.7 + 0.3 × (days played ÷ days in timeline)
+ *
+ * Every day in the timeline counts, so playing more always raises the score, and skipping a
+ * day costs more than failing it.
  *
  * @param {Array<{ date: Date, status: "solved" | "failed" | "missing", score: number | null }>} timeline
- *   Full day-by-day timeline in ascending date order (from `buildFullTimeline`).
- * @param {number} [maxGames] Only score the most recent `maxGames` days. Defaults to the whole timeline.
+ *   Day-by-day timeline covering the period being scored (from `buildFullTimeline`).
  */
-function calculateScore(timeline, maxGames) {
-  const window =
-    maxGames && timeline.length > maxGames ? timeline.slice(-maxGames) : timeline;
-
-  const played = window.filter((entry) => entry.status !== "missing");
+function calculateScore(timeline) {
+  const days = timeline.length;
+  const played = timeline.filter((entry) => entry.status !== "missing");
   const solved = played.filter((entry) => entry.status === "solved");
-
   const gamesPlayed = played.length;
-  const availableGames = window.length;
-  const solveRate = gamesPlayed > 0 ? solved.length / gamesPlayed : 0;
-  const avgGuesses =
-    solved.length > 0 ? solved.reduce((sum, entry) => sum + entry.score, 0) / solved.length : 0;
 
   const metrics = {
+    days,
     gamesPlayed,
     solvedGames: solved.length,
-    solveRate,
-    avgGuesses,
-    maxGames: availableGames,
+    failedGames: gamesPlayed - solved.length,
+    /** Solved ÷ played, for display */
+    solveRate: gamesPlayed > 0 ? solved.length / gamesPlayed : 0,
+    avgGuesses:
+      solved.length > 0 ? solved.reduce((sum, entry) => sum + entry.score, 0) / solved.length : 0,
   };
 
-  if (gamesPlayed === 0 || availableGames === 0) return { score: 0, metrics };
+  if (days === 0 || gamesPlayed === 0) return { score: 0, metrics };
 
-  /** Missed days count as unsolved here, otherwise a single lucky game outranks regulars */
-  const solveBonus = (solved.length / availableGames) * 50;
-  const guessEfficiency =
-    solved.length > 0 ? ((MAX_GUESSES - avgGuesses) / (MAX_GUESSES - 1)) * 50 : 0;
-  const participationMultiplier = 0.7 + 0.3 * (gamesPlayed / availableGames);
+  const avgPoints = timeline.reduce((sum, entry) => sum + dayPoints(entry), 0) / days;
+  const participationMultiplier = 0.7 + 0.3 * (gamesPlayed / days);
 
-  return { score: (solveBonus + guessEfficiency) * participationMultiplier, metrics };
+  return { score: avgPoints * participationMultiplier, metrics };
 }
 
 /**
- * Score and rank every user with at least one recorded Wordle.
- * Users with a score of 0 (no games in the window) are excluded.
+ * Score and rank every user who played at least once in the date range.
  *
- * @param {number} [maxGames] Only score the most recent `maxGames` days. Defaults to all time.
+ * @param {{ from: Date, to: Date, days: number } | null} range From `getPeriodRange`.
  * @returns {Promise<Array<{ user: object, score: number, metrics: object }>>} Sorted best first.
  */
-async function rankPlayers(maxGames) {
-  const [firstRecord, lastRecord] = await Promise.all([getFirstRecord(), getLastRecord()]);
-  if (!firstRecord || !lastRecord) return [];
+async function rankPlayers(range) {
+  if (!range || range.days === 0) return [];
 
   const users = await getAllUsers();
 
   const ranked = await Promise.all(
     users.map(async (user) => {
-      const timeline = await buildFullTimeline(user.wordles, firstRecord.date, lastRecord.date);
-      return { user, ...calculateScore(timeline, maxGames) };
+      const timeline = await buildFullTimeline(user.wordles, range.from, range.to);
+      return { user, ...calculateScore(timeline) };
     })
   );
 
-  return ranked.filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score);
+  return ranked
+    .filter((entry) => entry.metrics.gamesPlayed > 0)
+    .sort((a, b) => b.score - a.score);
 }
 
-module.exports = { calculateScore, rankPlayers };
+module.exports = { calculateScore, rankPlayers, dayPoints };
