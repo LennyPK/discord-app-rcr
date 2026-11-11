@@ -1,17 +1,14 @@
-// src/utils/pagination.js
 const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
-  CommandInteraction,
-  ChatInputCommandInteraction,
   MessageFlags,
 } = require("discord.js");
 
 /**
  * Send paginated embeds from an array of items.
- * @param {ChatInputCommandInteraction} interaction - Interaction to reply to.
+ * @param {import("discord.js").ChatInputCommandInteraction} interaction - Interaction to reply to.
  * @param {Array} items - Array of strings or objects to display.
  * @param {object} [options]
  * @param {number} [options.itemsPerPage=10] - Number of items per page.
@@ -20,7 +17,7 @@ const {
  * @param {string} [options.description] - Embed description.
  * @param {string} [options.listTitle] - Embed list's title.
  * @param {number} [options.color=0x5781ff] - Embed color.
- * @param {boolean} [options.timeout=120000] - Pagination timeout in ms.
+ * @param {number} [options.timeout=120000] - Pagination timeout in ms.
  * @param {boolean} [options.ephemeral=false] - Whether to make the message ephemeral.
  * @param {boolean} [options.followUp=false] - Whether to use followUp instead of reply.
  * @param {boolean} [options.publicNavPerm=false] - Whether any user can access the pagination.
@@ -44,6 +41,8 @@ async function sendPaginatedList(interaction, items, options = {}) {
     footer = null,
     timestamp = false,
   } = options;
+
+  const flags = ephemeral ? MessageFlags.Ephemeral : undefined;
 
   // Split items into pages
   const totalPages = Math.ceil(items.length / itemsPerPage);
@@ -73,8 +72,8 @@ async function sendPaginatedList(interaction, items, options = {}) {
   if (embeds.length === 1) {
     // Single page, just send normally
     return followUp
-      ? interaction.followUp({ embeds, ephemeral })
-      : interaction.reply({ embeds, ephemeral });
+      ? interaction.followUp({ embeds, flags })
+      : interaction.reply({ embeds, flags });
   }
 
   // Pagination buttons
@@ -92,12 +91,6 @@ async function sendPaginatedList(interaction, items, options = {}) {
     .setStyle(ButtonStyle.Primary)
     .setDisabled(true);
 
-  // const pageButton = new ButtonBuilder()
-  //   .setCustomId("gap")
-  //   .setLabel("\u200b")
-  //   .setStyle(ButtonStyle.Secondary)
-  //   .setDisabled(true);
-
   const nextButton = new ButtonBuilder()
     .setCustomId("next")
     .setLabel("▶️")
@@ -111,14 +104,13 @@ async function sendPaginatedList(interaction, items, options = {}) {
   const row = new ActionRowBuilder().addComponents(
     firstButton,
     prevButton,
-    // pageButton,
     nextButton,
     lastButton
   );
 
   const msg = followUp
-    ? await interaction.followUp({ embeds: [embeds[currentPage]], components: [row], ephemeral })
-    : await interaction.reply({ embeds: [embeds[currentPage]], components: [row], ephemeral });
+    ? await interaction.followUp({ embeds: [embeds[currentPage]], components: [row], flags })
+    : await interaction.reply({ embeds: [embeds[currentPage]], components: [row], flags });
 
   const collector = msg.createMessageComponentCollector({ time: timeout });
 
@@ -142,7 +134,6 @@ async function sendPaginatedList(interaction, items, options = {}) {
 
     row.components[0].setDisabled(isFirstPage); // firstButton
     row.components[1].setDisabled(isFirstPage); // prevButton
-    // row.components[2].setLabel(`Page ${currentPage + 1}/${embeds.length}`); // pageButton
     row.components[2].setDisabled(isLastPage); // nextButton
     row.components[3].setDisabled(isLastPage); // lastButton
 
@@ -151,7 +142,8 @@ async function sendPaginatedList(interaction, items, options = {}) {
 
   collector.on("end", async () => {
     row.components.forEach((btn) => btn.setDisabled(true));
-    await msg.edit({ components: [row] }).catch(() => {});
+    /** The message may have been deleted by now; nothing to update in that case */
+    await msg.edit({ components: [row] }).catch(() => null);
   });
 
   return msg;
