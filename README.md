@@ -99,6 +99,14 @@ npm run dev
 npm start
 ```
 
+### Running Tests
+
+Unit tests for scoring, leaderboard periods, results parsing and timelines use Node's built-in test runner:
+
+```bash
+npm test
+```
+
 ### Registering Commands
 
 Before first use, register slash commands with Discord:
