@@ -75,8 +75,9 @@ client.on(Events.MessageCreate, async (message) => {
         break;
       }
     } catch (error) {
-      console.error(error);
-      await message.reply({ content: "There was an error while executing this command!" });
+      /** Log only: message handlers react to other bots' posts, so a reply would confuse people */
+      console.error(`Message handler "${handler.name}" failed on message ${message.id}:`, error);
+      break;
     }
   }
 });
