@@ -60,6 +60,9 @@ DATABASE_URL=file:./prisma/dev.db
 
 # Wordle Bot Configuration
 WORDLE_APP_ID=wordle_bot_user_id_here
+
+# Timezone for all Wordle date calculations
+TZ=Pacific/Auckland
 ```
 
 ### Obtaining Configuration Values
