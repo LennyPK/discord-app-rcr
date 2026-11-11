@@ -24,6 +24,8 @@ const {
  * @param {boolean} [options.ephemeral=false] - Whether to make the message ephemeral.
  * @param {boolean} [options.followUp=false] - Whether to use followUp instead of reply.
  * @param {boolean} [options.publicNavPerm=false] - Whether any user can access the pagination.
+ * @param {string} [options.footer] - Footer text, shown before the page number.
+ * @param {boolean} [options.timestamp=false] - Whether to add a timestamp to the embed.
  */
 async function sendPaginatedList(interaction, items, options = {}) {
   if (!items || items.length === 0) throw new Error("No items provided for pagination.");
@@ -39,6 +41,8 @@ async function sendPaginatedList(interaction, items, options = {}) {
     ephemeral = false,
     followUp = false,
     publicNavPerm = false,
+    footer = null,
+    timestamp = false,
   } = options;
 
   // Split items into pages
@@ -49,17 +53,21 @@ async function sendPaginatedList(interaction, items, options = {}) {
     const pageItems = items.slice(i, i + itemsPerPage);
     const content = pageItems.map((item, idx) => formatItem(item, i + idx)).join("\n");
 
-    embeds.push(
-      new EmbedBuilder()
-        .setColor(color)
-        .setTitle(title)
-        .setDescription(description)
-        .addFields({
-          name: listTitle,
-          value: content,
-        })
-        .setFooter({ text: `Page ${Math.floor(i / itemsPerPage) + 1}/${totalPages}` })
-    );
+    const embed = new EmbedBuilder()
+      .setColor(color)
+      .setTitle(title)
+      .setDescription(description)
+      .addFields({
+        name: listTitle,
+        value: content,
+      });
+
+    const pageText = totalPages > 1 ? `Page ${Math.floor(i / itemsPerPage) + 1}/${totalPages}` : null;
+    const footerText = [footer, pageText].filter(Boolean).join(" • ");
+    if (footerText) embed.setFooter({ text: footerText });
+    if (timestamp) embed.setTimestamp();
+
+    embeds.push(embed);
   }
 
   if (embeds.length === 1) {

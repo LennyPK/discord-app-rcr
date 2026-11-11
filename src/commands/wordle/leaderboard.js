@@ -1,7 +1,9 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const { rankPlayers } = require("./utils/scoring");
 const { PERIOD, getPeriodRange } = require("./utils/periods");
+const { sendPaginatedList } = require("../../pagination");
 
+const EMBED_COLOR = 5763719;
 const MEDALS = [":first_place:", ":second_place:", ":third_place:"];
 
 module.exports = {
@@ -35,25 +37,34 @@ async function leaderboard(interaction, type) {
   const { title, description } = describePeriod(type, range);
   const rankings = await rankPlayers(range);
 
-  const lines =
-    rankings.length > 0
-      ? rankings.map(formatRanking)
-      : ["-# No Wordles recorded for this period yet."];
-
   let footer = "No Wordles recorded yet";
   if (range) {
     footer = range.periodDays ? `Day ${range.days}/${range.periodDays}` : `${range.days} Wordles`;
   }
 
-  return await interaction.reply({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(5763719)
-        .setTitle(title)
-        .setDescription(description + "\n" + lines.join("\n"))
-        .setFooter({ text: footer })
-        .setTimestamp(),
-    ],
+  if (rankings.length === 0) {
+    return await interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(EMBED_COLOR)
+          .setTitle(title)
+          .setDescription(description + "\n-# No Wordles recorded for this period yet.")
+          .setFooter({ text: footer })
+          .setTimestamp(),
+      ],
+    });
+  }
+
+  return await sendPaginatedList(interaction, rankings, {
+    itemsPerPage: 10,
+    title,
+    description,
+    listTitle: "Rankings",
+    formatItem: formatRanking,
+    color: EMBED_COLOR,
+    footer,
+    timestamp: true,
+    publicNavPerm: true,
   });
 }
 
