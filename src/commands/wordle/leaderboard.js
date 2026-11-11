@@ -1,8 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } = require("discord.js");
 const { prisma } = require("../../prisma-client");
-const { wordleScore } = require("./utils/scoring");
-const { getFirstRecord, getLastRecord, buildFullTimeline } = require("./utils/timeline");
-const { getAllUsers } = require("./utils/user");
+const { rankPlayers } = require("./utils/scoring");
 
 const LEADERBOARD = {
   ALL: "all",
@@ -197,220 +195,37 @@ async function leaderboard(interaction, type) {
  * @param {typeof LEADERBOARD[keyof typeof LEADERBOARD]} type
  */
 async function getLeaderboardData(type) {
-  const now = new Date();
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-
-  const daysInMonth = new Date(yesterday.getFullYear(), yesterday.getMonth() + 1, 0).getDate();
-
-  // const dayOfWeek = now.getDay();
-  // const dayOfMonth = now.getDate();
-
-  const dayOfWeek = yesterday.getDay();
-  const dayOfMonth = yesterday.getDate();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
 
   let maxGames;
   switch (type) {
-    case LEADERBOARD.WEEKLY:
-      if (dayOfWeek === 0) {
-        // On Sunday, show last week's total
-        maxGames = 7;
-        // } else if (dayOfWeek === 0) {
-        //   maxGames = 6;
-      } else {
-        // maxGames = dayOfWeek - 1;
-        // Otherwise: number of days since last Monday
-        maxGames = dayOfWeek;
-      }
+    case LEADERBOARD.WEEKLY: {
+      /** Days since Monday, inclusive of yesterday (Sunday => full week) */
+      const dayOfWeek = yesterday.getDay();
+      maxGames = dayOfWeek === 0 ? 7 : dayOfWeek;
       break;
-
+    }
     case LEADERBOARD.MONTHLY:
-      if (dayOfMonth === daysInMonth) {
-        // Yesterday was the last day of the month, show the last month's total
-        maxGames = daysInMonth;
-      } else {
-        maxGames = dayOfMonth;
-      }
+      maxGames = yesterday.getDate();
       break;
-
     default:
-      maxGames = null;
+      maxGames = undefined; // All time
   }
-  console.log("dayofMonth: " + dayOfMonth);
-  console.log("dayOfWeek: " + dayOfWeek);
-  // maxGames = type === LEADERBOARD.WEEKLY ? 7 : 31;
-  const allUsers = await getAllUsers();
 
-  // const rankingData = allUsers.map((user) => {
-  //   const { score, metrics } = calculateScore(user, user.wordles, type, maxGames);
-  //   return {
-  //     ...user,
-  //     score,
-  //   };
-  // });
+  const rankings = await rankPlayers(maxGames);
+  if (rankings.length === 0) return ["-# No Wordles recorded for this period yet."];
+
   const medals = [":first_place:", ":second_place:", ":third_place:"];
 
-  const rankingData = (
-    await Promise.all(
-      allUsers.map(async (user) => {
-        const { score, metrics } = await calculateScore(user, type, maxGames);
-        return {
-          ...user,
-          score,
-          metrics,
-        };
-      })
-    )
-  ).filter((user) => user.score > 0);
-
-  return (
-    rankingData
-      // .filter((user) => user.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .map((user, index) => {
-        const pos = medals[index] || `${index + 1}.`;
-        // if (index < 15) {
-        return (
-          `${pos} <@${user.id}> ${user.score.toFixed(2)}` +
-          "\n" +
-          `-# ${user.metrics.gamesPlayed}/${user.metrics.maxGames}` +
-          " • " +
-          `${(user.metrics.solveRate * 100).toFixed(0)}% solved`
-        );
-        // }
-      })
-  );
-  // for (const user of rankingData) {
-  //   // console.log(user);
-  //   console.info(
-  //     `Data for ${user.globalName}: ${user.score}, ${JSON.stringify(user.metrics, null, 2)}`
-  //   );
-  // }
-
-  // const score = await calculateScore(user, user.wordles, type, maxGames);
-  //  const rankingData = allUsers.map((u) => {
-  //    const { score } = wordleScore(u.wordles, "all");
-  //    return { username: u.username, score };
-  //  });
-
-  // let dateFrom;
-  // if (type === LEADERBOARD.WEEKLY) {
-  //   // const dayOfWeek = now.getDay();
-  //   const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  //   dateFrom = new Date(now);
-  //   dateFrom.setDate(now.getDate() - daysToMonday);
-  //   dateFrom.setHours(0, 0, 0, 0);
-  // } else if (type === LEADERBOARD.MONTHLY) {
-  //   dateFrom = new Date(now.getFullYear(), now.getMonth(), 1);
-  // } else {
-  //   dateFrom = new Date(0); // All time
-  // }
-
-  // const allTimeScores = await getUserScores(new Date(0));
-  // const periodScores = type === LEADERBOARD.ALL ? allTimeScores : await getUserScores(dateFrom);
-
-  // Calculate scores and sort
-  // return periodScores
-  //   .map((userStats) => {
-  //     const { score, metrics } = wordleScore(userStats.scores, type, { maxGames });
-  //     return {
-  //       ...userStats,
-  //       score,
-  //       solveRate: metrics.solveRate,
-  //       avgGuesses: metrics.avgGuesses,
-  //       participation: metrics.participationMultiplier,
-  //     };
-  //   })
-  //   .sort((a, b) => b.score - a.score);
-}
-
-async function calculateScore(user, leaderboardType, maxGames) {
-  const firstRecord = await getFirstRecord();
-  const lastRecord = await getLastRecord();
-
-  // const recentWordles =
-  //   maxGames && user.wordles.length > maxGames ? user.wordles.slice(0, maxGames) : user.wordles;
-
-  const fullTimeline = await buildFullTimeline(user.wordles, firstRecord.date, lastRecord.date);
-
-  if (!maxGames) {
-    maxGames = fullTimeline.length;
-  }
-
-  const recentWordles =
-    maxGames && fullTimeline.length > maxGames ? fullTimeline.slice(-maxGames) : fullTimeline;
-
-  console.log(recentWordles[0].date.toLocaleDateString("en-GB"));
-
-  const gamesPlayed = recentWordles.length;
-  const solvedGames = recentWordles.filter((wordle) => wordle.status === "solved");
-  const solveRate = gamesPlayed > 0 ? solvedGames.length / maxGames : 0;
-  const avgGuesses =
-    solvedGames.reduce((sum, wordle) => sum + wordle.score, 0) / (solvedGames.length || 1);
-
-  /** CHATGPT
-  if (maxGames === 0 || avgGuesses <= 0) return 0;
-
-  // Step 1: Skill-based efficiency (normalized out of 100)
-  const efficiency = 100 * ((solveRate * (6 - avgGuesses)) / 6);
-
-  // Step 2: Participation multiplier (weights frequency at 30%)
-  const participationMultiplier = 0.7 + 0.3 * (gamesPlayed / maxGames);
-
-  // Step 3: Final composite score
-  const finalScore = efficiency * participationMultiplier;
-
-  // Keep it in a 0–100 range
-  return Math.max(0, Math.min(100, finalScore));
-	*/
-  const emptyMetrics = {
-    score: 0,
-    metrics: { gamesPlayed: 0, solvedGames: 0, solveRate: 0, avgGuesses: 0, maxGames: 0 },
-  };
-
-  console.error("========");
-  console.log(`user: ${user.globalName}`);
-  console.log(`gamesPlayed: ${gamesPlayed}`);
-  console.log(`solveRate: ${solveRate}`);
-  console.log(`avgGuesses: ${avgGuesses}`);
-
-  /** CLAUDE CODE */
-  if (gamesPlayed === 0) return emptyMetrics;
-  // if (solveRate === 0) return emptyMetrics; // No solved games = 0 score
-  // if (avgGuesses < 1 || avgGuesses > 6) return emptyMetrics; // Invalid avg
-
-  // Solve rate component (0-50 points)
-  const solveBonus = solveRate * 50;
-
-  // Guess efficiency component (0-50 points, only counts solved games)
-  const guessEfficiency = ((6 - avgGuesses) / 6) * 50;
-
-  // Combined skill score (0-100 points)
-  const skillScore = solveBonus + guessEfficiency;
-
-  // Participation multiplier (70% baseline + 30% for consistency)
-  const participationMultiplier = 0.7 + 0.3 * (gamesPlayed / maxGames);
-  // const participationMultiplier = Math.max(0.5, 0.7 + 0.3 * (gamesPlayed / maxGames))
-
-  const finalScore = skillScore * participationMultiplier;
-
-  console.warn("========");
-  console.log(`score: ${finalScore}`);
-  console.log(`solvedGames: ${solvedGames.length}`);
-  console.log(`solveRate: ${solveRate}`);
-  console.log(`avgGuesses: ${avgGuesses}`);
-  console.log(`gamesPlayed: ${gamesPlayed}`);
-  console.log(`maxGames: ${maxGames}`);
-  console.warn("========");
-
-  return {
-    score: finalScore,
-    metrics: {
-      gamesPlayed,
-      solvedGames: solvedGames.length,
-      solveRate,
-      avgGuesses,
-      maxGames,
-    },
-  };
+  return rankings.map(({ user, score, metrics }, index) => {
+    const pos = medals[index] || `${index + 1}.`;
+    return (
+      `${pos} <@${user.id}> ${score.toFixed(2)}` +
+      "\n" +
+      `-# ${metrics.gamesPlayed}/${metrics.maxGames}` +
+      " • " +
+      `${(metrics.solveRate * 100).toFixed(0)}% solved`
+    );
+  });
 }

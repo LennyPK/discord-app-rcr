@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require("discord.js");
 const { prisma } = require("../../prisma-client");
-const { wordleScore } = require("./utils/scoring");
+const { calculateScore, rankPlayers } = require("./utils/scoring");
 const { valueMultiples } = require("../../utils");
 const { getFirstRecord, getLastRecord, buildFullTimeline } = require("./utils/timeline");
 
@@ -16,12 +16,16 @@ module.exports = {
       include: { wordles: { orderBy: { date: "desc" } } },
     });
 
-    const allUsers = await prisma.user.findMany({
-      include: { wordles: true },
-    });
+    if (!user || user.wordles.length === 0) {
+      await interaction.reply({
+        content: "No Wordles recorded for you yet. Play today's Wordle and check back tomorrow!",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
     const overallStats = await getOverallStatistics(user);
-    const rankings = await getRankings(user, allUsers);
+    const rankings = await getRankings(user);
     const recentActivity = await getRecentActivity(user);
     const lastGames = await getLastGames(user, 10);
 
@@ -77,34 +81,28 @@ module.exports = {
   },
 };
 
-async function getRankings(user, allUsers) {
-  const rankingData = allUsers.map((u) => {
-    const { score } = wordleScore(u.wordles, "all");
-    return { username: u.username, score };
-  });
+async function getRankings(user) {
+  /** Same all-time ranking as `/wordle_leaderboard type:all` */
+  const rankings = await rankPlayers();
 
-  // higher score is better
-  rankingData.sort((a, b) => b.score - a.score);
-  // TODO: Display score here instead
-  const rank = rankingData.findIndex((r) => r.username === user.username) + 1;
-  const total = rankingData.length;
+  const index = rankings.findIndex((entry) => entry.user.id === user.id);
+  const rank = index === -1 ? "-" : index + 1;
+  const score = index === -1 ? 0 : rankings[index].score;
 
-  const summary = `Rank: \`${rank}\`/\`${total}\``;
-  // FIXME: Fix score
-  const score = 1234.56;
-
+  const summary = `Rank: \`${rank}\`/\`${rankings.length}\``;
   const scoreSummary = `Score: \`${score.toFixed(2)}\``;
 
   return { summary, scoreSummary };
 }
 
 async function getOverallStatistics(user) {
-  const { score, metrics } = wordleScore(user.wordles, "all");
-
   /** Total Games */
   const gamesPlayedCount = user.wordles.length;
   const firstRecord = await getFirstRecord();
   const lastRecord = await getLastRecord();
+
+  const fullTimeline = await buildFullTimeline(user.wordles, firstRecord.date, lastRecord.date);
+  const { metrics } = calculateScore(fullTimeline);
 
   const firstDateMs = new Date(firstRecord.date).getTime();
   const lastDateMs = new Date(lastRecord.date).getTime();
@@ -113,7 +111,6 @@ async function getOverallStatistics(user) {
   const gamesPlayedSummary = `Total Games: \`${gamesPlayedCount}\`/\`${totalWordles}\``;
 
   /** Solves */
-  // FIXME: Come back after fixing the scoring utility
   const averageGuessSummary = `Average Guesses: \`${metrics.avgGuesses.toFixed(1)}\``;
   const solveSummary = `Solve Rate: \`${(metrics.solveRate * 100).toFixed(1)}%\``;
 
@@ -122,8 +119,7 @@ async function getOverallStatistics(user) {
   let currStreak = 0;
   let tempStreak = 0;
 
-  const fullTimeline = await buildFullTimeline(user.wordles, firstRecord.date, lastRecord.date);
-  const orderedTimeline = fullTimeline.sort((a, b) => a.date.getTime() - b.date.getTime());
+  const orderedTimeline = [...fullTimeline].sort((a, b) => a.date.getTime() - b.date.getTime());
 
   for (let i = 0; i < orderedTimeline.length; i++) {
     if (orderedTimeline[i].status === "solved") {

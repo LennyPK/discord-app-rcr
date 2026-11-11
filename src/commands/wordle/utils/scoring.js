@@ -1,45 +1,73 @@
-function wordleScore(wordleScores, leaderboardType) {
-  const gamesPlayed = wordleScores.length;
-  const maxGames = leaderboardType === "weekly" ? 7 : 30;
-  const solvedGames = wordleScores.filter((w) => w.score > 0);
-  const solveRate = gamesPlayed > 0 ? solvedGames.length / gamesPlayed : 0;
-  const avgGuesses = solvedGames.reduce((sum, w) => sum + w.score, 0) / (solvedGames.length || 1);
+const { getFirstRecord, getLastRecord, buildFullTimeline } = require("./timeline");
+const { getAllUsers } = require("./user");
 
-  /** CHATGPT
-  if (maxGames === 0 || avgGuesses <= 0) return 0;
+const MAX_GUESSES = 6;
 
-  // Step 1: Skill-based efficiency (normalized out of 100)
-  const efficiency = 100 * ((solveRate * (6 - avgGuesses)) / 6);
+/**
+ * Score a player's Wordle timeline (0–100).
+ *
+ * - Solve bonus (0–50): solved games / days available (missed days count against you).
+ *   Note `metrics.solveRate` is solved / played, for display.
+ * - Guess efficiency (0–50): 1 guess = 50, 6 guesses = 0, averaged over solved games only.
+ * - Participation multiplier (0.7–1.0): 70% baseline + 30% scaled by games played / days available.
+ *
+ * @param {Array<{ date: Date, status: "solved" | "failed" | "missing", score: number | null }>} timeline
+ *   Full day-by-day timeline in ascending date order (from `buildFullTimeline`).
+ * @param {number} [maxGames] Only score the most recent `maxGames` days. Defaults to the whole timeline.
+ */
+function calculateScore(timeline, maxGames) {
+  const window =
+    maxGames && timeline.length > maxGames ? timeline.slice(-maxGames) : timeline;
 
-  // Step 2: Participation multiplier (weights frequency at 30%)
-  const participationMultiplier = 0.7 + 0.3 * (gamesPlayed / maxGames);
+  const played = window.filter((entry) => entry.status !== "missing");
+  const solved = played.filter((entry) => entry.status === "solved");
 
-  // Step 3: Final composite score
-  const finalScore = efficiency * participationMultiplier;
+  const gamesPlayed = played.length;
+  const availableGames = window.length;
+  const solveRate = gamesPlayed > 0 ? solved.length / gamesPlayed : 0;
+  const avgGuesses =
+    solved.length > 0 ? solved.reduce((sum, entry) => sum + entry.score, 0) / solved.length : 0;
 
-  // Keep it in a 0–100 range
-  return Math.max(0, Math.min(100, finalScore));
-	*/
+  const metrics = {
+    gamesPlayed,
+    solvedGames: solved.length,
+    solveRate,
+    avgGuesses,
+    maxGames: availableGames,
+  };
 
-  /** CLAUDE CODE */
-  if (maxGames === 0 || gamesPlayed === 0) return 0;
-  if (solveRate === 0) return 0; // No solved games = 0 score
-  if (avgGuesses < 1 || avgGuesses > 6) return 0; // Invalid avg
+  if (gamesPlayed === 0 || availableGames === 0) return { score: 0, metrics };
 
-  // Solve rate component (0-50 points)
-  const solveBonus = solveRate * 50;
+  /** Missed days count as unsolved here, otherwise a single lucky game outranks regulars */
+  const solveBonus = (solved.length / availableGames) * 50;
+  const guessEfficiency =
+    solved.length > 0 ? ((MAX_GUESSES - avgGuesses) / (MAX_GUESSES - 1)) * 50 : 0;
+  const participationMultiplier = 0.7 + 0.3 * (gamesPlayed / availableGames);
 
-  // Guess efficiency component (0-50 points, only counts solved games)
-  const guessEfficiency = ((6 - avgGuesses) / 5) * 50;
-
-  // Combined skill score (0-100 points)
-  const skillScore = solveBonus + guessEfficiency;
-
-  // Participation multiplier (70% baseline + 30% for consistency)
-  const participationMultiplier = 0.7 + 0.3 * (gamesPlayed / maxGames);
-  // const participationMultiplier = Math.max(0.5, 0.7 + 0.3 * (gamesPlayed / maxGames))
-
-  return skillScore * participationMultiplier;
+  return { score: (solveBonus + guessEfficiency) * participationMultiplier, metrics };
 }
 
-module.exports = { wordleScore };
+/**
+ * Score and rank every user with at least one recorded Wordle.
+ * Users with a score of 0 (no games in the window) are excluded.
+ *
+ * @param {number} [maxGames] Only score the most recent `maxGames` days. Defaults to all time.
+ * @returns {Promise<Array<{ user: object, score: number, metrics: object }>>} Sorted best first.
+ */
+async function rankPlayers(maxGames) {
+  const [firstRecord, lastRecord] = await Promise.all([getFirstRecord(), getLastRecord()]);
+  if (!firstRecord || !lastRecord) return [];
+
+  const users = await getAllUsers();
+
+  const ranked = await Promise.all(
+    users.map(async (user) => {
+      const timeline = await buildFullTimeline(user.wordles, firstRecord.date, lastRecord.date);
+      return { user, ...calculateScore(timeline, maxGames) };
+    })
+  );
+
+  return ranked.filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score);
+}
+
+module.exports = { calculateScore, rankPlayers };
