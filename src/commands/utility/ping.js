@@ -1,21 +1,44 @@
-const { SlashCommandBuilder } = require("discord.js");
-const { sendPaginatedList } = require("../../pagination");
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require("discord.js");
+
+const EMBED_COLOR = 5763719;
 
 module.exports = {
-  data: new SlashCommandBuilder().setName("ping").setDescription("Replies with Pong!"),
+  data: new SlashCommandBuilder()
+    .setName("ping")
+    .setDescription("Check that the bot is online and see its response time"),
   async execute(interaction) {
-    await interaction.reply("Pong!!");
+    const sent = Date.now();
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const roundTrip = Date.now() - sent;
 
-    // const items = Array.from({ length: 100 }, (_, i) => `Item ${i + 1}`);
+    /** -1 until the first heartbeat after login */
+    const websocket = interaction.client.ws.ping;
 
-    // await sendPaginatedList(interaction, items, {
-    //   itemsPerPage: 10,
-    //   title: "Item List",
-    //   description: "This is an item list.",
-    //   listTitle: "Items",
-    //   formatItem: (item, idx) => `${idx + 1}. Item ${item}`,
-    //   ephemeral: false,
-    //   followUp: true,
-    // });
+    await interaction.editReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(EMBED_COLOR)
+          .setTitle(":green_square: Wordle bot is online")
+          .addFields(
+            { name: ":stopwatch: Response", value: `\`${roundTrip}ms\``, inline: true },
+            {
+              name: ":satellite: Gateway",
+              value: websocket >= 0 ? `\`${websocket}ms\`` : "`measuring…`",
+              inline: true,
+            },
+            { name: ":clock3: Uptime", value: `\`${formatUptime(interaction.client.uptime)}\``, inline: true }
+          )
+          .setTimestamp(),
+      ],
+    });
   },
 };
+
+/** @param {number} ms */
+function formatUptime(ms) {
+  const minutes = Math.floor(ms / 60000);
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+  return [days && `${days}d`, (days || hours) && `${hours}h`, `${mins}m`].filter(Boolean).join(" ");
+}
