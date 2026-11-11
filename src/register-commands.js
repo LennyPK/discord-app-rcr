@@ -44,18 +44,6 @@ const rest = new REST().setToken(token);
       .then((data) =>
         console.info(`Successfully reloaded ${data.length} application (/) commands.`)
       );
-    // await rest
-    //   .put(Routes.applicationCommands(clientId), { body: commands })
-    //   .then((data) =>
-    //     console.info(`Successfully reloaded ${data.length} application (/) commands.`)
-    //   );
-
-    // await rest
-    //   .put(Routes.applicationGuildCommands(clientId, guildId), { body: [] })
-    //   .then(() => console.info("Successfully deleted all guild commands"));
-    // await rest
-    //   .put(Routes.applicationCommands(clientId), { body: [] })
-    //   .then(() => console.info("Successfully deleted all application commands"));
   } catch (error) {
     /** And of course, make sure you catch and log any errors! */
     console.error(error);

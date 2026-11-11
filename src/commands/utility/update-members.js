@@ -112,7 +112,7 @@ async function displayMembers(interaction, verbose) {
       title: ":busts_in_silhouette: Synchronised Users",
       description: "Server members synchronised with database",
       listTitle: "",
-      formatItem: (user, index) => `- <@${user.id}>`,
+      formatItem: (user) => `- <@${user.id}>`,
       ephemeral: false,
       followUp: true,
       publicNavPerm: true,
@@ -123,7 +123,6 @@ async function displayMembers(interaction, verbose) {
 /** ========== EXECUTE COMMAND ========== */
 async function execute(interaction) {
   try {
-    // TODO: Change Ephemeral flag if content needs to be displayed
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     /** Extract command options */

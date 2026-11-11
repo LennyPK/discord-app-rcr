@@ -18,24 +18,12 @@ module.exports = {
     .addStringOption((options) =>
       options
         .setName("range")
-        .setDescription(
-          "Scrape messages until this date (YYYY-MM-DD). Defaults to the beginning of Wordle (May 2025)."
-        )
+        .setDescription("How far back to scan this channel for Wordle results")
         .setRequired(true)
         .addChoices(
-          {
-            name: `Last 7 days (since ${new Date(
-              Date.now() - 7 * 24 * 60 * 60 * 1000
-            ).toLocaleDateString("en-GB")})`,
-            value: RANGE.WEEK,
-          },
-          {
-            name: `Last 30 days (since ${new Date(
-              Date.now() - 30 * 24 * 60 * 60 * 1000
-            ).toLocaleDateString("en-GB")})`,
-            value: RANGE.MONTH,
-          },
-          { name: "All Time (default)", value: RANGE.ALL }
+          { name: "Last 7 days", value: RANGE.WEEK },
+          { name: "Last 30 days", value: RANGE.MONTH },
+          { name: "All time (since May 2025)", value: RANGE.ALL }
         )
     )
     .addBooleanOption((options) =>
@@ -46,15 +34,13 @@ module.exports = {
     ),
   async execute(interaction) {
     try {
-      // TODO: Change Ephemeral flag if content needs to be displayed
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       /** Extract command options */
       const range = interaction.options.getString("range");
       const verbose = interaction.options.getBoolean("verbose");
 
-      /** Fetch all guild members */
-      // TODO: Enable after testing
+      /** Sync guild members first, so scores link to real names */
       await updateMembers(interaction);
 
       await wait(5000);
@@ -233,7 +219,7 @@ async function displaySummary(interaction, verbose, scoresFound) {
     title: "✅ Scraping complete!",
     description: "Found and saved `" + scoresFound + "` Wordle scores.",
     listTitle: "Total Wordles per User",
-    formatItem: (user, index) => `- <@${user.id}>: ${user._count.wordles} Wordles`,
+    formatItem: (user) => `- <@${user.id}>: ${user._count.wordles} Wordles`,
     ephemeral: false,
     followUp: true,
     publicNavPerm: true,
