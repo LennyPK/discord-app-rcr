@@ -38,10 +38,24 @@ async function getPeriodRange(period) {
   const [firstRecord, lastRecord] = await Promise.all([getFirstRecord(), getLastRecord()]);
   if (!firstRecord || !lastRecord) return null;
 
-  const yesterday = startOfDay(new Date());
+  return computePeriodRange(period, {
+    today: new Date(),
+    firstRecordDate: firstRecord.date,
+    lastRecordDate: lastRecord.date,
+  });
+}
+
+/**
+ * Pure date maths behind `getPeriodRange`.
+ *
+ * @param {typeof PERIOD[keyof typeof PERIOD]} period
+ * @param {{ today: Date, firstRecordDate: Date, lastRecordDate: Date }} dates
+ */
+function computePeriodRange(period, { today, firstRecordDate, lastRecordDate }) {
+  const yesterday = startOfDay(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  const lastRecorded = startOfDay(lastRecord.date);
+  const lastRecorded = startOfDay(lastRecordDate);
   const to = lastRecorded < yesterday ? lastRecorded : yesterday;
 
   let from;
@@ -65,7 +79,7 @@ async function getPeriodRange(period) {
       periodEnd = new Date(yesterday.getFullYear(), 11, 31);
       break;
     default:
-      from = startOfDay(firstRecord.date);
+      from = startOfDay(firstRecordDate);
   }
 
   return {
@@ -76,4 +90,4 @@ async function getPeriodRange(period) {
   };
 }
 
-module.exports = { PERIOD, getPeriodRange };
+module.exports = { PERIOD, getPeriodRange, computePeriodRange };
