@@ -3,7 +3,7 @@ const { wait } = require("../../utils");
 const { prisma } = require("../../prisma-client");
 const { updateMembers } = require("../utility/update-members");
 const { sendPaginatedList } = require("../../pagination");
-require("dotenv/config");
+require("../../env");
 
 const wordleAppId = process.env.WORDLE_APP_ID;
 

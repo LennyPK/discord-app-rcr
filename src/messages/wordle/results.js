@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require("discord.js");
 const { prisma } = require("../../prisma-client");
 
-require("dotenv/config");
+require("../../env");
 
 const wordleAppId = process.env.WORDLE_APP_ID;
 const resultRegex = /here are yesterday'?s results/i;
